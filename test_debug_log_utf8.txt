@@ -1,0 +1,107 @@
+﻿
+[7m[1m[36m RUN [39m[22m[27m [36mv1.6.1[39m [90mC:/Users/Admin/Desktop/Programa 01[39m
+
+[90mstdout[2m | tests/simulacro_contabilidad.test.ts[2m > [22m[2mSimulacro de M├│dulo de Contabilidad (QA E2E Logic)[2m > [22m[2mdebe registrar correctamente el flujo de un d├¡a t├¡pico y reflejarlo en el Dashboard[22m[39m
+DEBUG ASIENTOS: [
+  {
+    "id": 1,
+    "fecha": "2026-04-21 16:29:01",
+    "tasa_referencia": 35.5,
+    "referencia_id": 1,
+    "tipo": "INGRESO",
+    "categoria": "SERVICIO",
+    "debe_usd": 50,
+    "haber_usd": 0,
+    "debe_ves": 1775,
+    "haber_ves": 0,
+    "descripcion": "Factura #1 - Ingreso por servicios"
+  },
+  {
+    "id": 2,
+    "fecha": "2026-04-21 16:29:01",
+    "tasa_referencia": 35.5,
+    "referencia_id": 1,
+    "tipo": "EGRESO",
+    "categoria": "COMISION",
+    "debe_usd": 0,
+    "haber_usd": 10,
+    "debe_ves": 0,
+    "haber_ves": 355,
+    "descripcion": "Factura #1 - Comisi├│n m├⌐dica"
+  },
+  {
+    "id": 3,
+    "fecha": "2026-04-21 16:29:01",
+    "tasa_referencia": 35.5,
+    "referencia_id": 1,
+    "tipo": "EGRESO",
+    "categoria": "COSTO_INSUMO",
+    "debe_usd": 0,
+    "haber_usd": 5,
+    "debe_ves": 0,
+    "haber_ves": 177.5,
+    "descripcion": "Factura #1 - Costo insumo ID 1 (FIFO)"
+  },
+  {
+    "id": 4,
+    "fecha": "2026-04-21 16:29:01",
+    "tasa_referencia": 35.5,
+    "referencia_id": 2,
+    "tipo": "INGRESO",
+    "categoria": "SERVICIO",
+    "debe_usd": 50,
+    "haber_usd": 0,
+    "debe_ves": 1775,
+    "haber_ves": 0,
+    "descripcion": "Factura #2 - Ingreso por servicios"
+  },
+  {
+    "id": 5,
+    "fecha": "2026-04-21 16:29:01",
+    "tasa_referencia": 35.5,
+    "referencia_id": 2,
+    "tipo": "EGRESO",
+    "categoria": "COMISION",
+    "debe_usd": 0,
+    "haber_usd": 10,
+    "debe_ves": 0,
+    "haber_ves": 355,
+    "descripcion": "Factura #2 - Comisi├│n m├⌐dica"
+  },
+  {
+    "id": 6,
+    "fecha": "2026-04-21 16:29:01",
+    "tasa_referencia": 35.5,
+    "referencia_id": 2,
+    "tipo": "EGRESO",
+    "categoria": "COSTO_INSUMO",
+    "debe_usd": 0,
+    "haber_usd": 5,
+    "debe_ves": 0,
+    "haber_ves": 177.5,
+    "descripcion": "Factura #2 - Costo insumo ID 1 (FIFO)"
+  }
+]
+DEBUG KPIS: {
+  "ingresos": {
+    "usd": 100,
+    "ves": 3550
+  },
+  "egresos": {
+    "usd": 30,
+    "ves": 1065
+  },
+  "ganancia_neta": {
+    "usd": 70,
+    "ves": 2485
+  }
+}
+DEBUG FECHA ACTUAL: 2026-04-21
+
+ [32mΓ£ô[39m tests/simulacro_contabilidad.test.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 54[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m   Start at [22m 12:28:56
+[2m   Duration [22m 4.39s[2m (transform 171ms, setup 409ms, collect 51ms, tests 54ms, environment 2.89s, prepare 367ms)[22m
+
