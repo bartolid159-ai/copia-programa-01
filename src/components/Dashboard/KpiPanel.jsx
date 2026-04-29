@@ -1,63 +1,47 @@
-import { useState, useEffect } from 'react';
-import reportService from '../../logic/reportService';
-
-const KpiPanel = () => {
-  const [kpis, setKpis] = useState({
-    ingresos: { usd: 0, ves: 0 },
-    egresos: { usd: 0, ves: 0 },
-    ganancia_neta: { usd: 0, ves: 0 }
-  });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    try {
-      const data = reportService.getKpiDia();
-      setKpis(data);
-    } catch (error) {
-      console.error("Error fetching KPIs:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  if (loading) {
-    return <div className="loading-spinner">Cargando KPIs...</div>;
+const KpiPanel = ({ kpis, loading }) => {
+  if (loading || !kpis) {
+    return (
+      <div className="dashboard-grid animate-fade">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="kpi-card glassmorphism skeleton-kpi">
+            <div className="skeleton-line" style={{ width: '40%' }}></div>
+            <div className="skeleton-line" style={{ width: '80%', height: '2rem' }}></div>
+          </div>
+        ))}
+      </div>
+    );
   }
 
-  const FormatAmount = ({ usd, ves, colorClass }) => (
-    <div className={`amount-group ${colorClass}`}>
-      <div className="amount-usd">${usd.toFixed(2)}</div>
-      <div className="amount-ves">{ves.toLocaleString('es-VE', { minimumFractionDigits: 2 })} VES</div>
-    </div>
-  );
+  const { ingresos_totales, egresos_totales, ganancia_neta, margen_neto, is_margen_contribucion } = kpis;
 
   return (
-    <div className="dashboard-grid fade-in">
-      <div className="kpi-card glassmorphism">
-        <h3>Ganancia Neta (Hoy)</h3>
-        <FormatAmount 
-          usd={kpis.ganancia_neta.usd} 
-          ves={kpis.ganancia_neta.ves} 
-          colorClass={kpis.ganancia_neta.usd >= 0 ? 'text-cyan' : 'text-red'} 
-        />
-      </div>
-      
-      <div className="kpi-card glassmorphism">
-        <h3>Total Ingresos</h3>
-        <FormatAmount 
-          usd={kpis.ingresos.usd} 
-          ves={kpis.ingresos.ves} 
-          colorClass="text-green" 
-        />
+    <div className="dashboard-grid animate-in">
+      <div className="kpi-card glassmorphism highlight-card">
+        <h3>{is_margen_contribucion ? 'Margen de Contribución' : 'Margen de Ganancia'}</h3>
+        <div className={`amount ${margen_neto >= 15 ? 'text-green' : margen_neto > 0 ? 'text-cyan' : 'text-red'}`}>
+          {margen_neto.toFixed(1)}%
+        </div>
+        <p className="metric-subtitle">Rentabilidad sobre ingresos</p>
       </div>
 
       <div className="kpi-card glassmorphism">
-        <h3>Total Egresos</h3>
-        <FormatAmount 
-          usd={kpis.egresos.usd} 
-          ves={kpis.egresos.ves} 
-          colorClass="text-red" 
-        />
+        <h3>Ingresos Totales</h3>
+        <div className="amount text-green">${ingresos_totales.toFixed(2)}</div>
+        <p className="metric-subtitle">Flujo bruto de entrada</p>
+      </div>
+
+      <div className="kpi-card glassmorphism">
+        <h3>Egresos Totales</h3>
+        <div className="amount text-red">${egresos_totales.toFixed(2)}</div>
+        <p className="metric-subtitle">{is_margen_contribucion ? 'Solo costos directos' : 'Operativos + Directos'}</p>
+      </div>
+
+      <div className="kpi-card glassmorphism">
+        <h3>Resultado Neto</h3>
+        <div className={`amount ${ganancia_neta >= 0 ? 'text-cyan' : 'text-red'}`}>
+          ${ganancia_neta.toFixed(2)}
+        </div>
+        <p className="metric-subtitle">Balance del periodo</p>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ jspm_packages/
 # Build and Output
 dist/
 dist-electron/
+entrega_final/
 build/
 out/
 target/

@@ -20,6 +20,6 @@ Este plan detalla las acciones necesarias para subir el estado actual del proyec
 2. **Manual**: El usuario podrá verificar en la interfaz de GitHub que los archivos aparecen correctamente.
 
 ## Definición de Hecho (Definition of Done)
-- [ ] La rama `main` local se ha subido exitosamente a `origin`.
-- [ ] No hay archivos pendientes por commitear (confirmado por `git status`).
-- [ ] El repositorio remoto refleja exactamente el contenido del repositorio local (respetando el `.gitignore`).
+- [x] La rama `main` local se ha subido exitosamente a `origin`.
+- [x] No hay archivos pendientes por commitear (confirmado por `git status`).
+- [x] El repositorio remoto refleja exactamente el contenido del repositorio local (respetando el `.gitignore`).

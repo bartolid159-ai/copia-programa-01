@@ -143,6 +143,93 @@ export const getLiquidacionPorMedico = (fechaDesde, fechaHasta) => {
   return getResumenComisionesPorMedico();
 };
 
+/**
+ * Dashboard de Flujo de Negocio en Tiempo Real (Filtros granulares)
+ * @param {Object} filters - { startDate, endDate, medicos, servicios }
+ */
+export const getDashboardStats = (filters = {}) => {
+  const db = getDb();
+  const { startDate, endDate, medicos = [], servicios = [] } = filters;
+  
+  let whereClauses = ["1=1"];
+  let params = [];
+
+  if (startDate) {
+    whereClauses.push("DATE(a.fecha) >= ?");
+    params.push(startDate);
+  }
+  if (endDate) {
+    whereClauses.push("DATE(a.fecha) <= ?");
+    params.push(endDate);
+  }
+
+  let joinClause = "";
+  if ((medicos && medicos.length > 0) || (servicios && servicios.length > 0)) {
+     joinClause = "JOIN facturas f ON a.referencia_id = f.id";
+     if (medicos && medicos.length > 0) {
+        const placeholders = medicos.map(() => '?').join(',');
+        whereClauses.push(`f.id_medico IN (${placeholders})`);
+        params.push(...medicos);
+     }
+     if (servicios && servicios.length > 0) {
+        const placeholders = servicios.map(() => '?').join(',');
+        whereClauses.push(`f.id IN (SELECT id_factura FROM factura_detalles WHERE id_servicio IN (${placeholders}))`);
+        params.push(...servicios);
+     }
+  }
+
+  // KPIs Financieros
+  const kpiQuery = `
+    SELECT 
+      SUM(a.debe_usd) as ingresos_usd,
+      SUM(a.haber_usd) as egresos_usd,
+      SUM(CASE WHEN a.categoria IN ('GASTO_OPERATIVO') THEN a.haber_usd ELSE 0 END) as egresos_fijos,
+      SUM(CASE WHEN a.categoria IN ('COMISION', 'COSTO_INSUMO') THEN a.haber_usd ELSE 0 END) as egresos_directos
+    FROM contabilidad_asientos a
+    ${joinClause}
+    WHERE ${whereClauses.join(' AND ')}
+  `;
+
+  const kpis = db.prepare(kpiQuery).get(...params) || { ingresos_usd: 0, egresos_usd: 0, egresos_fijos: 0, egresos_directos: 0 };
+  
+  // Lógica de Margen (Chain of Thought)
+  // Si hay filtros, usamos margen de contribución (Ingresos - Costos Directos)
+  const isFiltrado = (medicos && medicos.length > 0) || (servicios && servicios.length > 0);
+  const ingresos = kpis.ingresos_usd || 0;
+  const egresosParaMargen = isFiltrado ? (kpis.egresos_directos || 0) : (kpis.egresos_usd || 0);
+  const margen = ingresos > 0 ? round2(((ingresos - egresosParaMargen) / ingresos) * 100) : 0;
+
+  // Datos de tendencia
+  const flowQuery = `
+    SELECT 
+      DATE(a.fecha) as fecha_dia,
+      SUM(a.debe_usd) as ingresos_usd,
+      SUM(a.haber_usd) as egresos_usd
+    FROM contabilidad_asientos a
+    ${joinClause}
+    WHERE ${whereClauses.join(' AND ')}
+    GROUP BY DATE(a.fecha)
+    ORDER BY DATE(a.fecha) ASC
+  `;
+  const trend = db.prepare(flowQuery).all(...params).map(r => ({
+    fecha: r.fecha_dia,
+    ingresos_usd: round2(r.ingresos_usd || 0),
+    egresos_usd: round2(r.egresos_usd || 0),
+    ganancia_neta_usd: round2((r.ingresos_usd || 0) - (r.egresos_usd || 0))
+  }));
+
+  return {
+    kpis: {
+      ingresos_totales: round2(ingresos),
+      egresos_totales: round2(kpis.egresos_usd || 0),
+      ganancia_neta: round2(ingresos - (kpis.egresos_usd || 0)),
+      margen_neto: margen,
+      is_margen_contribucion: isFiltrado
+    },
+    trend
+  };
+};
+
 export default {
   getKpiDia,
   getTopServicios,
@@ -150,5 +237,6 @@ export default {
   getFlujoDiario,
   getAuditoriaTasas,
   calcularDiferenciaCaja,
-  getLiquidacionPorMedico
+  getLiquidacionPorMedico,
+  getDashboardStats
 };

@@ -198,3 +198,9 @@ CREATE TABLE IF NOT EXISTS liquidaciones_medicos (
   creado_en         DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY(id_medico) REFERENCES medicos(id)
 );
+
+-- Índices de Optimización
+CREATE INDEX IF NOT EXISTS idx_contabilidad_fecha_cat ON contabilidad_asientos(fecha, categoria, tipo);
+CREATE INDEX IF NOT EXISTS idx_contabilidad_referencia ON contabilidad_asientos(referencia_id);
+CREATE INDEX IF NOT EXISTS idx_facturas_medico_fecha ON facturas(id_medico, fecha);
+CREATE INDEX IF NOT EXISTS idx_factura_detalles_servicio ON factura_detalles(id_servicio);

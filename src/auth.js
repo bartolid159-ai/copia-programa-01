@@ -6,9 +6,9 @@ let bcrypt;
 if (!isBrowser) {
   try {
     const req = typeof require !== 'undefined' ? require : (typeof process !== 'undefined' && process.mainModule ? process.mainModule.require : eval('require'));
-    bcrypt = req('bcrypt');
+    bcrypt = req('bcryptjs');
   } catch (err) {
-    console.warn("Bcrypt native no disponible.");
+    console.warn("BcryptJS no disponible.");
   }
 }
 
