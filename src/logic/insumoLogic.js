@@ -249,3 +249,15 @@ export const getAllCompras = async () => {
     return data ? data : c;
   });
 };
+
+export const deleteCompra = async (id) => {
+  if (isBrowser) {
+    const compras = JSON.parse(localStorage.getItem('clinica_compras') || '[]');
+    const detalles = JSON.parse(localStorage.getItem('clinica_compra_detalles') || '[]');
+    localStorage.setItem('clinica_compras', JSON.stringify(compras.filter(c => c.id !== id)));
+    localStorage.setItem('clinica_compra_detalles', JSON.stringify(detalles.filter(d => d.id_compra !== id)));
+    return { success: true };
+  }
+  const db = getDbManager();
+  return db.deleteCompra(id);
+};
