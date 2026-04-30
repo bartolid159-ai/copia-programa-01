@@ -1,11 +1,31 @@
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import { describe, it, expect, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import App from '../../src/App.jsx';
+
+// Mocking required logic
+vi.mock('../../src/logic/reportService', () => ({
+  default: {
+    getDashboardStats: vi.fn().mockResolvedValue({ kpis: {}, trend: [] }),
+    getKpiDia: vi.fn().mockReturnValue({ ingresos: { usd: 0, ves: 0 }, egresos: { usd: 0, ves: 0 }, ganancia_neta: { usd: 0, ves: 0 } }),
+    getFlujoDiario: vi.fn().mockReturnValue([])
+  },
+  getDashboardStats: vi.fn().mockResolvedValue({ kpis: {}, trend: [] }),
+  getKpiDia: vi.fn().mockReturnValue({ ingresos: { usd: 0, ves: 0 }, egresos: { usd: 0, ves: 0 }, ganancia_neta: { usd: 0, ves: 0 } }),
+  getFlujoDiario: vi.fn().mockReturnValue([])
+}));
+
+vi.mock('../../src/logic/doctorService', () => ({
+  getDoctors: vi.fn().mockResolvedValue([])
+}));
+
+vi.mock('../../src/logic/serviceLogic', () => ({
+  getServices: vi.fn().mockResolvedValue([])
+}));
 
 describe('App Component - Tarea 01', () => {
   afterEach(cleanup);
 
-  it('debe renderizar el título de la aplicación y permitir navegar a Contabilidad', () => {
+  it('debe renderizar el título de la aplicación y permitir navegar a Contabilidad', async () => {
     render(<App />);
     expect(screen.getByText(/Médica/i)).toBeInTheDocument();
     
@@ -18,7 +38,10 @@ describe('App Component - Tarea 01', () => {
 
     // Ahora verificamos que el header y el contenido cambien
     expect(screen.getByText(/Contabilidad \/ Dashboard/i)).toBeInTheDocument();
-    expect(screen.getByText(/Panel de Inteligencia/i)).toBeInTheDocument();
+    
+    await waitFor(() => {
+        expect(screen.getByText(/Flujo de Negocio Inteligente/i)).toBeInTheDocument();
+    });
   });
 
   it('debe iniciar en Modo Oscuro por defecto (sin la clase light-mode)', () => {

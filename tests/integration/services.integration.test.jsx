@@ -27,6 +27,17 @@ vi.mock('../../src/logic/doctorService', () => ({
   ])
 }));
 
+vi.mock('../../src/logic/reportService', () => ({
+  default: {
+    getDashboardStats: vi.fn().mockResolvedValue({ kpis: {}, trend: [] }),
+    getKpiDia: vi.fn().mockReturnValue({ ingresos: { usd: 0, ves: 0 }, egresos: { usd: 0, ves: 0 }, ganancia_neta: { usd: 0, ves: 0 } }),
+    getFlujoDiario: vi.fn().mockReturnValue([])
+  },
+  getDashboardStats: vi.fn().mockResolvedValue({ kpis: {}, trend: [] }),
+  getKpiDia: vi.fn().mockReturnValue({ ingresos: { usd: 0, ves: 0 }, egresos: { usd: 0, ves: 0 }, ganancia_neta: { usd: 0, ves: 0 } }),
+  getFlujoDiario: vi.fn().mockReturnValue([])
+}));
+
 describe('Services Integration Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
