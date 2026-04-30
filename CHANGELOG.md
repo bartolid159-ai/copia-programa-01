@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.1.0](https://github.com/bartolid159-ai/copia-programa-01/compare/v2.0.0...v2.1.0) (2026-04-30)
+
+
+### Features
+
+* Dashboard de Flujo de Negocio Inteligente (Contabilidad v2) ([dd61f53](https://github.com/bartolid159-ai/copia-programa-01/commit/dd61f5375934f1b66ebfe06153b1cdf6e76c4031))
+* filtros de período y borrado seguro de pacientes ([73b5195](https://github.com/bartolid159-ai/copia-programa-01/commit/73b51951bbece65a485a8d7db027d47f07ef99ed))
+* implement real-time accounting dashboard with granular filters and contribution margin logic ([fcc7668](https://github.com/bartolid159-ai/copia-programa-01/commit/fcc7668d7079f0d400742f9c5680a86296fc66ce))
+* implementar filtros de mes/año y borrado seguro de pacientes ([03e6b76](https://github.com/bartolid159-ai/copia-programa-01/commit/03e6b76096443de5e6fabfb39399b048f13cb9cc))
+* implementar modulo de jornadas medicas con precios promocionales dinamicos ([bfcfee2](https://github.com/bartolid159-ai/copia-programa-01/commit/bfcfee26ed74a00a865df01563f120e8d7fa68db))
+
+
+### Bug Fixes
+
+* resolve CI failures by fixing duplicate exports, updating test assertions and adding logic mocks ([49b55e3](https://github.com/bartolid159-ai/copia-programa-01/commit/49b55e35d9b80db499e1a5305c576d5ecf41ada5))
+* resolve CI pipeline failures (ERR_DLOPEN_FAILED) by adding failsafe DB fallback and complete UI mocks ([1ce4fd6](https://github.com/bartolid159-ai/copia-programa-01/commit/1ce4fd6524731444ecb7f8518402bd98c17a458e))
+
 ## [1.9.1](https://github.com/bartolid159-ai/Progama-01/compare/v1.9.0...v1.9.1) (2026-04-15)
 
 
