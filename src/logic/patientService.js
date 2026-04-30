@@ -104,25 +104,30 @@ export const updatePatient = async (patientData) => {
 };
 
 /**
- * Deactivates an existing patient.
+ * Elimina físicamente un paciente y sus registros asociados (con confirmación de seguridad).
  */
 export const deletePatient = async (id) => {
   try {
     const numericId = Number(id);
     if (isBrowser) {
         const patients = getBrowserPatients();
-        const index = patients.findIndex(p => p.id === numericId);
-        if (index !== -1) {
-            patients[index].activo = 0;
-            saveBrowserPatients(patients);
-            return { success: true, message: "Paciente eliminado (Modo Navegador)." };
-        }
-        return { success: false, message: "Paciente no encontrado." };
+        const filtered = patients.filter(p => p.id !== numericId);
+        saveBrowserPatients(filtered);
+        
+        // También limpiar facturas en el navegador si existen
+        const INVOICES_KEY = 'clinica_invoices_db';
+        const invoices = JSON.parse(localStorage.getItem(INVOICES_KEY) || '[]');
+        const filteredInvoices = invoices.filter(inv => inv.id_paciente !== numericId);
+        localStorage.setItem(INVOICES_KEY, JSON.stringify(filteredInvoices));
+
+        return { success: true, message: "Paciente y datos asociados eliminados (Modo Navegador)." };
     }
-    return { success: true, message: "Borrado exitoso (SQL placeholder)." };
+    
+    const db = await getDbManager();
+    return db.deletePaciente(id);
   } catch (error) {
     console.error("Error in deletePatient:", error);
-    return { success: false, message: "Error al borrar." };
+    return { success: false, message: "Error al borrar el paciente y su historial." };
   }
 };
 
