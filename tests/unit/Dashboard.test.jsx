@@ -4,8 +4,10 @@ import Dashboard from '../../src/components/Dashboard/Dashboard';
 import DashboardFilters from '../../src/components/Dashboard/DashboardFilters';
 
 // Mocking the logic services
-vi.mock('../../src/logic/reportService', () => ({
-  default: {
+vi.mock('../../src/logic/reportService', async () => {
+  const actual = await vi.importActual('../../src/logic/reportService');
+  return {
+    ...actual,
     getDashboardStats: vi.fn().mockResolvedValue({
       kpis: {
         ingresos_totales: 1000,
@@ -15,19 +17,11 @@ vi.mock('../../src/logic/reportService', () => ({
         is_margen_contribucion: false
       },
       trend: []
-    })
-  },
-  getDashboardStats: vi.fn().mockResolvedValue({
-    kpis: {
-      ingresos_totales: 1000,
-      egresos_totales: 400,
-      ganancia_neta: 600,
-      margen_neto: 60,
-      is_margen_contribucion: false
-    },
-    trend: []
-  })
-}));
+    }),
+    getIngresosPorServicio: vi.fn().mockResolvedValue([]),
+    getIngresosPorMedico: vi.fn().mockResolvedValue([])
+  };
+});
 
 vi.mock('../../src/logic/doctorService', () => ({
   getDoctors: vi.fn().mockResolvedValue([{ id: 1, nombre: 'Dr. House' }])

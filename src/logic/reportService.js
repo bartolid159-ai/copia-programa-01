@@ -415,6 +415,70 @@ export const getDashboardStats = (filters = {}) => {
   };
 };
 
+// ──────────────────────────────────────────────────────────────────────
+// Ingresos por Servicio y por Médico (Nuevos Gráficos)
+// ──────────────────────────────────────────────────────────────────────
+export const getIngresosPorServicio = (startDate = null, endDate = null) => {
+  if (IS_BROWSER_MODE) {
+    const facturas = _filtrarPorFecha(_getFacturasLocal(), startDate, endDate);
+    const mapa = {};
+    facturas.forEach(f => {
+      (f.items || []).forEach(item => {
+        const nombre = item.nombre || 'Sin nombre';
+        if (!mapa[nombre]) mapa[nombre] = { nombre, ingresos_usd: 0 };
+        mapa[nombre].ingresos_usd += (item.precio_usd || 0) * (item.cantidad || 1);
+      });
+    });
+    return Object.values(mapa).sort((a, b) => b.ingresos_usd - a.ingresos_usd).map(r => ({ ...r, ingresos_usd: round2(r.ingresos_usd) }));
+  }
+
+  const params = [];
+  let dateClause = '';
+  if (startDate) { dateClause += ' AND DATE(f.fecha) >= ?'; params.push(startDate); }
+  if (endDate)   { dateClause += ' AND DATE(f.fecha) <= ?'; params.push(endDate); }
+
+  const query = `
+    SELECT s.nombre, SUM(fd.cantidad * fd.precio_unitario_usd) as ingresos_usd
+    FROM factura_detalles fd
+    JOIN facturas f ON fd.id_factura = f.id
+    JOIN servicios s ON fd.id_servicio = s.id
+    WHERE 1=1 ${dateClause}
+    GROUP BY s.id
+    ORDER BY ingresos_usd DESC
+  `;
+  return db.prepare(query).all(...params).map(r => ({ nombre: r.nombre, ingresos_usd: round2(r.ingresos_usd || 0) }));
+};
+
+export const getIngresosPorMedico = (startDate = null, endDate = null) => {
+  if (IS_BROWSER_MODE) {
+    const facturas = _filtrarPorFecha(_getFacturasLocal(), startDate, endDate);
+    const doctors = JSON.parse(localStorage.getItem('clinica_doctors_db') || '[]');
+    const mapa = {};
+    facturas.forEach(f => {
+      const medico = doctors.find(d => Number(d.id) === Number(f.id_medico));
+      const nombre = medico ? medico.nombre : 'Sin médico';
+      if (!mapa[nombre]) mapa[nombre] = { nombre, ingresos_usd: 0 };
+      mapa[nombre].ingresos_usd += (f.total_usd || 0);
+    });
+    return Object.values(mapa).sort((a, b) => b.ingresos_usd - a.ingresos_usd).map(r => ({ ...r, ingresos_usd: round2(r.ingresos_usd) }));
+  }
+
+  const params = [];
+  let dateClause = '';
+  if (startDate) { dateClause += ' AND DATE(f.fecha) >= ?'; params.push(startDate); }
+  if (endDate)   { dateClause += ' AND DATE(f.fecha) <= ?'; params.push(endDate); }
+
+  const query = `
+    SELECT m.nombre, SUM(f.total_usd) as ingresos_usd
+    FROM facturas f
+    LEFT JOIN medicos m ON f.id_medico = m.id
+    WHERE 1=1 ${dateClause}
+    GROUP BY f.id_medico
+    ORDER BY ingresos_usd DESC
+  `;
+  return db.prepare(query).all(...params).map(r => ({ nombre: r.nombre || 'Sin médico', ingresos_usd: round2(r.ingresos_usd || 0) }));
+};
+
 export default {
   getKpiDia,
   getTopServicios,

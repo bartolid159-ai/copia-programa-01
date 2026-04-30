@@ -83,7 +83,9 @@ describe('Simulacro de Módulo de Contabilidad (QA E2E Logic)', () => {
       nombre: 'Consulta General QA',
       precio_usd: 50,
       es_exento: 1,
-      id_medico_defecto: medicoId
+      id_medico_defecto: medicoId,
+      gasto_descripcion: null,
+      gasto_precio_usd: 0
     }).lastInsertRowid;
 
     dbManager.setServicioInsumos(servicioId, [{ id_insumo: insumoId, cantidad: 1 }]);

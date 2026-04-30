@@ -27,7 +27,8 @@ describe('deleteFactura - Borrado Atómico y Seguridad Contable', () => {
       correo: 'd@d.com', especialidad: 'X', porcentaje_comision: 10
     });
     insertServicio({
-      nombre: 'Svc Test', precio_usd: 100, es_exento: 1, id_medico_defecto: 1
+      nombre: 'Svc Test', precio_usd: 100, es_exento: 1, id_medico_defecto: 1,
+      gasto_descripcion: null, gasto_precio_usd: 0
     });
   });
 
