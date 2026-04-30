@@ -13,6 +13,7 @@ import RevenueChart from './components/Dashboard/RevenueChart';
 import Banner from './components/Common/Banner';
 import Dashboard from './components/Dashboard/Dashboard';
 import CashClosing from './components/Settings/CashClosing';
+import JornadaPanel from './components/Jornadas/JornadaPanel';
 import SuppliesList from './components/Supplies/SuppliesList';
 import SupplyForm from './components/Supplies/SupplyForm';
 import PurchasesList from './components/Purchases/PurchasesList';
@@ -156,6 +157,7 @@ function App() {
       case 'supplies': return 'Inventario';
       case 'purchases': return 'Compras';
       case 'liquidation': return 'Liquidación de Médicos';
+      case 'jornadas': return 'Jornadas Médicas';
       default: return 'Sistema de Gestión';
     }
   };
@@ -175,6 +177,7 @@ function App() {
           <li className={activeView === 'supplies' ? 'active' : ''} onClick={() => setActiveView('supplies')}>Inventario</li>
           <li className={activeView === 'purchases' ? 'active' : ''} onClick={() => setActiveView('purchases')}>Compras</li>
           <li className={activeView === 'liquidation' ? 'active' : ''} onClick={() => setActiveView('liquidation')}>Liquidación</li>
+          <li className={activeView === 'jornadas' ? 'active' : ''} onClick={() => setActiveView('jornadas')}>Jornadas</li>
           <li className={activeView === 'accounting' ? 'active' : ''} onClick={() => setActiveView('accounting')}>Contabilidad</li>
         </ul>
       </nav>
@@ -256,6 +259,10 @@ function App() {
 
         {activeView === 'liquidation' && (
           <LiquidacionPanel onShowBanner={handleShowBanner} />
+        )}
+
+        {activeView === 'jornadas' && (
+          <JornadaPanel />
         )}
 
 

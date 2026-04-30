@@ -199,8 +199,28 @@ CREATE TABLE IF NOT EXISTS liquidaciones_medicos (
   FOREIGN KEY(id_medico) REFERENCES medicos(id)
 );
 
+-- Jornadas Médicas (Precios Promocionales)
+CREATE TABLE IF NOT EXISTS jornadas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL,
+  fecha_inicio DATE NOT NULL,
+  fecha_fin DATE NOT NULL,
+  activa BOOLEAN DEFAULT 1,
+  creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS jornadas_servicios (
+  id_jornada INTEGER,
+  id_servicio INTEGER,
+  precio_oferta_usd REAL NOT NULL,
+  PRIMARY KEY (id_jornada, id_servicio),
+  FOREIGN KEY(id_jornada) REFERENCES jornadas(id) ON DELETE CASCADE,
+  FOREIGN KEY(id_servicio) REFERENCES servicios(id) ON DELETE CASCADE
+);
+
 -- Índices de Optimización
 CREATE INDEX IF NOT EXISTS idx_contabilidad_fecha_cat ON contabilidad_asientos(fecha, categoria, tipo);
 CREATE INDEX IF NOT EXISTS idx_contabilidad_referencia ON contabilidad_asientos(referencia_id);
 CREATE INDEX IF NOT EXISTS idx_facturas_medico_fecha ON facturas(id_medico, fecha);
 CREATE INDEX IF NOT EXISTS idx_factura_detalles_servicio ON factura_detalles(id_servicio);
+CREATE INDEX IF NOT EXISTS idx_jornadas_fechas ON jornadas(fecha_inicio, fecha_fin, activa);
