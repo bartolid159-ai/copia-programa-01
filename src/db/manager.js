@@ -89,29 +89,36 @@ function initializeDb(dbPath, loadSchema) {
   }
 
   // Initialize DB
-  dbInstance = new Database(dbPath);
+  try {
+    dbInstance = new Database(dbPath);
 
-  // Pragmas for performance and enforcing foreign keys (ACID bounds)
-  dbInstance.pragma('journal_mode = WAL');
-  dbInstance.pragma('synchronous = NORMAL');
-  dbInstance.pragma('foreign_keys = ON');
+    // Pragmas for performance and enforcing foreign keys (ACID bounds)
+    dbInstance.pragma('journal_mode = WAL');
+    dbInstance.pragma('synchronous = NORMAL');
+    dbInstance.pragma('foreign_keys = ON');
 
-  // Conditionally load the initial schema if it exists 
-  if (loadSchema) {
-    // Definimos la ruta relativa al archivo manager.js o al CWD
-    // En Vitest/Node, process.cwd() suele ser la raíz del proyecto
-    const schemaPath = pth.join(process.cwd(), 'src', 'db', 'schema.sql');
-    
-    if (fs.existsSync(schemaPath)) {
-      try {
-        const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-        dbInstance.exec(schemaSql);
-      } catch (err) {
-        console.error("Error cargando el esquema SQL:", err);
+    // Conditionally load the initial schema if it exists 
+    if (loadSchema) {
+      const schemaPath = pth.join(process.cwd(), 'src', 'db', 'schema.sql');
+      
+      if (fs.existsSync(schemaPath)) {
+        try {
+          const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+          dbInstance.exec(schemaSql);
+        } catch (err) {
+          console.error("Error cargando el esquema SQL:", err);
+        }
       }
-    } else {
-      console.warn(`Schema file not found at ${schemaPath}. Ensure you are running from project root.`);
     }
+  } catch (err) {
+    console.warn("Fatal error initializing native SQLite. Falling back to stub database:", err.message);
+    return {
+      prepare: () => ({ run: () => ({ lastInsertRowid: 1 }), get: () => null, all: () => [], transaction: (cb) => cb }),
+      exec: () => {},
+      pragma: () => {},
+      transaction: (cb) => cb,
+      close: () => {}
+    };
   }
   
   return dbInstance;

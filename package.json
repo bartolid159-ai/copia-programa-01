@@ -25,16 +25,22 @@
       "electron/**/*"
     ],
     "win": {
-      "target": "dir",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "ia32"
+          ]
+        }
+      ],
       "icon": "build/icon.ico"
     },
-    "nsis": {
-      "createDesktopShortcut": true,
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "runAfterFinish": true
+    "portable": {
+      "artifactName": "${productName} 32bits.${ext}",
+      "requestExecutionLevel": "admin"
     },
     "asar": true,
+    "npmRebuild": false,
     "extraResources": [
       {
         "from": "node_modules/better-sqlite3",
@@ -43,8 +49,8 @@
     ],
     "publish": {
       "provider": "github",
-      "owner": "your-username",
-      "repo": "medical-office-manager"
+      "owner": "bartolid159-ai",
+      "repo": "copia-programa-01"
     }
   },
   "keywords": [
@@ -56,7 +62,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "bcrypt": "^5.1.1",
+    "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.0.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

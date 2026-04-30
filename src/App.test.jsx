@@ -8,7 +8,21 @@ vi.mock('./logic/patientService', () => ({
 }));
 
 vi.mock('./logic/doctorService', () => ({
-  getDoctors: vi.fn().mockResolvedValue([])
+  getDoctors: vi.fn().mockResolvedValue([
+    { id: 1, nombre: 'Dr. Gregory House', especialidad: 'Diagnóstico' },
+    { id: 2, nombre: 'Dra. Allison Cameron', especialidad: 'Inmunología' }
+  ])
+}));
+
+vi.mock('./logic/reportService', () => ({
+  default: {
+    getDashboardStats: vi.fn().mockResolvedValue({ kpis: {}, trend: [] }),
+    getKpiDia: vi.fn().mockReturnValue({ ingresos: { usd: 0, ves: 0 }, egresos: { usd: 0, ves: 0 }, ganancia_neta: { usd: 0, ves: 0 } }),
+    getFlujoDiario: vi.fn().mockReturnValue([])
+  },
+  getDashboardStats: vi.fn().mockResolvedValue({ kpis: {}, trend: [] }),
+  getKpiDia: vi.fn().mockReturnValue({ ingresos: { usd: 0, ves: 0 }, egresos: { usd: 0, ves: 0 }, ganancia_neta: { usd: 0, ves: 0 } }),
+  getFlujoDiario: vi.fn().mockReturnValue([])
 }));
 
 vi.mock('./logic/serviceLogic', () => ({
@@ -19,6 +33,11 @@ vi.mock('./logic/billingEngine', () => ({
   calculateTotals: vi.fn(() => ({ subtotal_usd: 0, iva_usd: 0, total_usd: 0, total_ves: 0 })),
   calculateCommission: vi.fn(() => 0),
   getRequiredInsumos: vi.fn(() => [])
+}));
+
+vi.mock('./logic/backupService', () => ({
+  crearBackup: vi.fn().mockResolvedValue(true),
+  limpiarBackupsAntiguos: vi.fn().mockResolvedValue(true)
 }));
 
 describe('App - Billing Integration', () => {
