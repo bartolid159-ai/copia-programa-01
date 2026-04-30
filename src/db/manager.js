@@ -19,6 +19,8 @@ const INVOICES_KEY = 'clinica_facturas_db';
 const PATIENTS_KEY = 'clinica_patients_db';
 const DOCTORS_KEY = 'clinica_doctors_db';
 const INSUMOS_KEY = 'clinica_insumos';
+const JORNADAS_KEY = 'clinica_jornadas_db';
+const JORNADA_SERVICIOS_KEY = 'clinica_jornadas_servicios_db';
 
 
 
@@ -1179,4 +1181,105 @@ export const deletePaciente = (id) => {
 
     return { success: true, message: 'Paciente y registros asociados eliminados correctamente' };
   });
+};
+
+/**
+ * Jornadas Médicas (CRUD)
+ */
+export const insertJornada = (data) => {
+  if (isBrowser) {
+    const jornadas = JSON.parse(localStorage.getItem(JORNADAS_KEY) || '[]');
+    const id = jornadas.length > 0 ? Math.max(...jornadas.map(j => j.id)) + 1 : 1;
+    const newJornada = { ...data, id, activa: data.activa ?? 1, creado_en: new Date().toISOString() };
+    jornadas.push(newJornada);
+    localStorage.setItem(JORNADAS_KEY, JSON.stringify(jornadas));
+    return { success: true, lastInsertRowid: id };
+  }
+
+  const db = getDb();
+  const stmt = db.prepare(`
+    INSERT INTO jornadas (nombre, fecha_inicio, fecha_fin, activa)
+    VALUES (@nombre, @fecha_inicio, @fecha_fin, @activa)
+  `);
+  return stmt.run({ ...data, activa: data.activa ?? 1 });
+};
+
+export const getJornadas = () => {
+  if (isBrowser) {
+    return JSON.parse(localStorage.getItem(JORNADAS_KEY) || '[]').sort((a, b) => new Date(b.fecha_inicio) - new Date(a.fecha_inicio));
+  }
+  const db = getDb();
+  return db.prepare('SELECT * FROM jornadas ORDER BY fecha_inicio DESC').all();
+};
+
+export const getActiveJornada = (date) => {
+  const targetDate = date || new Date().toISOString().split('T')[0];
+  if (isBrowser) {
+    const jornadas = JSON.parse(localStorage.getItem(JORNADAS_KEY) || '[]');
+    return jornadas.find(j => j.activa && targetDate >= j.fecha_inicio && targetDate <= j.fecha_fin);
+  }
+  const db = getDb();
+  return db.prepare('SELECT * FROM jornadas WHERE activa = 1 AND ? BETWEEN fecha_inicio AND fecha_fin LIMIT 1').get(targetDate);
+};
+
+export const updateJornadaStatus = (id, activa) => {
+  if (isBrowser) {
+    const jornadas = JSON.parse(localStorage.getItem(JORNADAS_KEY) || '[]');
+    const index = jornadas.findIndex(j => j.id === id);
+    if (index !== -1) {
+      jornadas[index].activa = activa ? 1 : 0;
+      localStorage.setItem(JORNADAS_KEY, JSON.stringify(jornadas));
+    }
+    return { success: true };
+  }
+  const db = getDb();
+  return db.prepare('UPDATE jornadas SET activa = ? WHERE id = ?').run(activa ? 1 : 0, id);
+};
+
+export const deleteJornada = (id) => {
+  if (isBrowser) {
+    const jornadas = JSON.parse(localStorage.getItem(JORNADAS_KEY) || '[]');
+    localStorage.setItem(JORNADAS_KEY, JSON.stringify(jornadas.filter(j => j.id !== id)));
+    const details = JSON.parse(localStorage.getItem(JORNADA_SERVICIOS_KEY) || '[]');
+    localStorage.setItem(JORNADA_SERVICIOS_KEY, JSON.stringify(details.filter(d => d.id_jornada !== id)));
+    return { success: true };
+  }
+  return executeTransaction(() => {
+    const db = getDb();
+    db.prepare('DELETE FROM jornadas_servicios WHERE id_jornada = ?').run(id);
+    return db.prepare('DELETE FROM jornadas WHERE id = ?').run(id);
+  });
+};
+
+export const setJornadaServicios = (id_jornada, servicios) => {
+  if (isBrowser) {
+    let details = JSON.parse(localStorage.getItem(JORNADA_SERVICIOS_KEY) || '[]');
+    details = details.filter(d => d.id_jornada !== id_jornada);
+    servicios.forEach(s => {
+      details.push({ id_jornada, id_servicio: s.id_servicio, precio_oferta_usd: s.precio_oferta_usd });
+    });
+    localStorage.setItem(JORNADA_SERVICIOS_KEY, JSON.stringify(details));
+    return { success: true };
+  }
+
+  return executeTransaction(() => {
+    const db = getDb();
+    db.prepare('DELETE FROM jornadas_servicios WHERE id_jornada = ?').run(id_jornada);
+    const stmt = db.prepare(`
+      INSERT INTO jornadas_servicios (id_jornada, id_servicio, precio_oferta_usd)
+      VALUES (@id_jornada, @id_servicio, @precio_oferta_usd)
+    `);
+    servicios.forEach(s => {
+      stmt.run({ id_jornada, id_servicio: s.id_servicio, precio_oferta_usd: s.precio_oferta_usd });
+    });
+  });
+};
+
+export const getServiciosPorJornada = (id_jornada) => {
+  if (isBrowser) {
+    const details = JSON.parse(localStorage.getItem(JORNADA_SERVICIOS_KEY) || '[]');
+    return details.filter(d => d.id_jornada === id_jornada);
+  }
+  const db = getDb();
+  return db.prepare('SELECT * FROM jornadas_servicios WHERE id_jornada = ?').all(id_jornada);
 };

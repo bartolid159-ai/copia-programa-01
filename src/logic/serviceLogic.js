@@ -136,9 +136,40 @@ export const deleteService = async (id) => {
  * Get all services.
  */
 export const getServices = async () => {
-    if (isBrowser) return getBrowserServices();
     const db = getDbManager();
-    const services = db.getAllServicios();
+    let services = [];
+
+    if (isBrowser) {
+        services = getBrowserServices();
+        const jornadas = JSON.parse(localStorage.getItem('clinica_jornadas_db') || '[]');
+        const targetDate = new Date().toISOString().split('T')[0];
+        const activeJornada = jornadas.find(j => j.activa && targetDate >= j.fecha_inicio && targetDate <= j.fecha_fin);
+        
+        if (activeJornada) {
+            const promoPrices = JSON.parse(localStorage.getItem('clinica_jornadas_servicios_db') || '[]');
+            const jornadaPromos = promoPrices.filter(p => p.id_jornada === activeJornada.id);
+            
+            services = services.map(s => {
+                const promo = jornadaPromos.find(p => p.id_servicio === s.id);
+                return promo ? { ...s, precio_usd: promo.precio_oferta_usd, es_promocion: true } : s;
+            });
+        }
+        return services;
+    }
+
+    services = db.getAllServicios();
+    const activeJornada = db.getActiveJornada();
+
+    if (activeJornada) {
+        const jornadaPromos = db.getServiciosPorJornada(activeJornada.id);
+        services = services.map(service => {
+            const promo = jornadaPromos.find(p => p.id_servicio === service.id);
+            if (promo) {
+                return { ...service, precio_usd: promo.precio_oferta_usd, es_promocion: true };
+            }
+            return service;
+        });
+    }
     
     // Aggregate insumos for each service
     return services.map(service => ({
@@ -183,4 +214,57 @@ export const registerInsumo = async (insumoData) => {
     const db = getDbManager();
     const result = db.insertInsumo(insumoData);
     return { success: true, message: "Insumo registrado.", id: result.lastInsertRowid };
+};
+
+/**
+ * Jornadas CRUD Logic
+ */
+export const getJornadas = async () => {
+    if (isBrowser) return JSON.parse(localStorage.getItem('clinica_jornadas_db') || '[]');
+    const db = getDbManager();
+    return db.getJornadas();
+};
+
+export const registerJornada = async (jornadaData) => {
+    try {
+        const db = isBrowser ? null : getDbManager();
+        const result = isBrowser 
+            ? dbManager.insertJornada(jornadaData) 
+            : db.insertJornada(jornadaData);
+            
+        const jornadaId = isBrowser ? result.lastInsertRowid : result.lastInsertRowid;
+        
+        if (jornadaData.servicios && jornadaData.servicios.length > 0) {
+            if (isBrowser) {
+                dbManager.setJornadaServicios(jornadaId, jornadaData.servicios);
+            } else {
+                db.setJornadaServicios(jornadaId, jornadaData.servicios);
+            }
+        }
+        
+        return { success: true, message: "Jornada registrada correctamente.", id: jornadaId };
+    } catch (error) {
+        console.error("Error registerJornada:", error);
+        return { success: false, message: "Error al registrar la jornada." };
+    }
+};
+
+export const deleteJornada = async (id) => {
+    try {
+        if (isBrowser) {
+            dbManager.deleteJornada(id);
+        } else {
+            const db = getDbManager();
+            db.deleteJornada(id);
+        }
+        return { success: true, message: "Jornada eliminada." };
+    } catch (error) {
+        return { success: false, message: "Error al eliminar la jornada." };
+    }
+};
+
+export const getServiciosPorJornada = async (id_jornada) => {
+    if (isBrowser) return dbManager.getServiciosPorJornada(id_jornada);
+    const db = getDbManager();
+    return db.getServiciosPorJornada(id_jornada);
 };

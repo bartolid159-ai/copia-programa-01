@@ -19,9 +19,15 @@ Bienvenido al **Sistema de Gestión Médica**. Este programa ha sido diseñado p
 - Soporte para múltiples divisas (USD/VES).
 - Sistema de liquidación para médicos (comisiones).
 
-### 4. Seguridad y Backups
+### 4. Jornadas Médicas (Promociones)
+- Configure campañas de salud con precios especiales.
+- Establezca fechas de inicio y fin para la aplicación automática de descuentos.
+- Los precios vuelven a su valor original al terminar la jornada sin intervención manual.
+
+### 5. Seguridad y Backups
 - El sistema realiza copias de seguridad automáticas localmente.
 - Acceso restringido mediante usuario y contraseña.
+- **Borrado Seguro**: La eliminación de facturas o pacientes requiere la clave de administrador para garantizar la integridad contable.
 
 ---
 *Para soporte técnico, contacte a su proveedor de software.*
