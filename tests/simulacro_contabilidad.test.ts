@@ -152,8 +152,8 @@ describe('Simulacro de Módulo de Contabilidad (QA E2E Logic)', () => {
     const topServ = tops.find((s: TopServicio) => s.nombre === 'Consulta General QA');
     expect(topServ).toBeDefined();
     expect(topServ?.ingresos_usd).toBe(100);
-    // Ganancia por servicio: En este nuevo modelo, el Top Servicios descuenta COSTO_INSUMO (10)
-    // pero las comisiones son globales. 100 - 10 = 90.
-    expect(topServ?.ganancia_neta_usd).toBe(90);
+    // Ganancia por servicio: El modelo actual descuenta COSTO_INSUMO (10 USD) y COMISION_MEDICO (20% de 100 = 20 USD).
+    // Ganancia neta real = 100 - 10 - 20 = 70 USD.
+    expect(topServ?.ganancia_neta_usd).toBe(70);
   });
 });
