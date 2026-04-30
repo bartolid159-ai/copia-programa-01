@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/bartolid159-ai/copia-programa-01/compare/v2.2.0...v2.3.0) (2026-04-30)
+
+
+### Features
+
+* Módulo Contabilidad Completo - Gráficos, Gastos, Facturas y Alquileres ([#10](https://github.com/bartolid159-ai/copia-programa-01/issues/10))" ([d7dfe8d](https://github.com/bartolid159-ai/copia-programa-01/commit/d7dfe8d5ee11be4333f4119a9e3a84958adcc2c9))
+
 ## [2.2.0](https://github.com/bartolid159-ai/copia-programa-01/compare/v2.1.1...v2.2.0) (2026-04-30)
 
 
