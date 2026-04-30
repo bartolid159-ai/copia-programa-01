@@ -4,6 +4,8 @@ import * as doctorService from '../../logic/doctorService';
 import { getTasaDelDia } from '../../logic/rateService';
 import Notification from '../Common/Notification';
 import ConfirmModal from '../Common/ConfirmModal';
+import SecurityModal from '../Common/SecurityModal';
+import { login } from '../../auth';
 
 const LIQ_DRAFT_KEY = 'clinica_liquidacion_draft';
 
@@ -42,6 +44,9 @@ const LiquidacionPanel = ({ onShowBanner }) => {
   const [notification, setNotification] = useState(null);
   const [ultimoPago, setUltimoPago] = useState(null);
   const [verRecibo, setVerRecibo] = useState(false);
+  
+  // Seguridad y Borrado
+  const [securityModal, setSecurityModal] = useState({ isOpen: false, paymentId: null, error: '' });
 
   // Persistencia de borrador (Draft)
   useEffect(() => {
@@ -120,8 +125,9 @@ const LiquidacionPanel = ({ onShowBanner }) => {
       return;
     }
     if (detalle && montoNum > (detalle.resumen.saldo_pendiente_usd + 0.01)) {
-      setNotification({ message: 'El monto supera el saldo pendiente', type: 'error' });
-      return;
+      // Permitir continuar pero con advertencia (o puedes decidir bloquearlo)
+      // En este caso, el usuario quiere poder registrar el pago manualmente si hay errores de cálculo.
+      console.warn('El monto supera el saldo pendiente calculado');
     }
     setShowConfirmModal(true);
   };
@@ -175,6 +181,38 @@ const LiquidacionPanel = ({ onShowBanner }) => {
       setNotification({ message: 'Error de red al procesar pago', type: 'error' });
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteClick = (id) => {
+    setSecurityModal({ isOpen: true, paymentId: id, error: '' });
+  };
+
+  const handleConfirmDelete = async (password) => {
+    try {
+      const authResult = await login('admin', password);
+      
+      if (!authResult.success) {
+        setSecurityModal(prev => ({ ...prev, error: 'Clave incorrecta. Acceso denegado.' }));
+        return;
+      }
+
+      const result = await liquidacionService.deletePago(securityModal.paymentId);
+      if (result.success) {
+        setNotification({ message: '✅ Pago eliminado correctamente', type: 'success' });
+        setSecurityModal({ isOpen: false, paymentId: null, error: '' });
+        
+        // Recargar datos
+        const historial = await liquidacionService.getHistorialGlobalLiquidaciones();
+        setHistorialGlobal(historial);
+        if (selectedDoctor) {
+          const detalle = await liquidacionService.getDetalleLiquidacion(selectedDoctor.id, null, null);
+          setDetalle(detalle);
+        }
+      }
+    } catch (err) {
+      console.error('Error al eliminar pago:', err);
+      setSecurityModal(prev => ({ ...prev, error: 'Error al procesar el borrado.' }));
     }
   };
 
@@ -363,7 +401,7 @@ const LiquidacionPanel = ({ onShowBanner }) => {
                   className="inv-input"
                   value={montoPagar}
                   onChange={(e) => setMontoPagar(e.target.value)}
-                  disabled={!selectedDoctor || detalle?.resumen?.saldo_pendiente_usd <= 0}
+                  disabled={!selectedDoctor}
                 />
               </div>
 
@@ -471,8 +509,17 @@ const LiquidacionPanel = ({ onShowBanner }) => {
                             });
                             setVerRecibo(true);
                           }}
+                          title="Ver Recibo"
                         >
                           📄
+                        </button>
+                        <button 
+                          className="btn-view" 
+                          style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', marginLeft: '8px' }}
+                          onClick={() => handleDeleteClick(l.id)}
+                          title="Eliminar Pago"
+                        >
+                          🗑️
                         </button>
                       </td>
                     </tr>
@@ -558,6 +605,15 @@ const LiquidacionPanel = ({ onShowBanner }) => {
         confirmText="Confirmar Pago"
         cancelText="Cancelar"
         type="warning"
+      />
+
+      <SecurityModal 
+        isOpen={securityModal.isOpen}
+        title="Confirmar Borrado de Pago"
+        message={`¿Está seguro que desea eliminar este comprobante de pago? Esta acción restaurará la deuda del médico en el sistema.`}
+        error={securityModal.error}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setSecurityModal({ isOpen: false, paymentId: null, error: '' })}
       />
 
       <style>{`

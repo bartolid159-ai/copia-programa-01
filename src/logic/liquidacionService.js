@@ -1,4 +1,4 @@
-import { getResumenComisionesPorMedico, getComisionesMedico, insertLiquidacion, getLiquidacionesMedico, getAllLiquidaciones } from '../db/manager';
+import { getResumenComisionesPorMedico, getComisionesMedico, insertLiquidacion, getLiquidacionesMedico, getAllLiquidaciones, deleteLiquidacion } from '../db/manager';
 
 const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
 
@@ -51,4 +51,8 @@ export const registrarPago = async (pagoData) => {
 
 export const getHistorialPagos = async (idMedico) => {
   return getLiquidacionesMedico(idMedico);
+};
+
+export const deletePago = async (id) => {
+  return deleteLiquidacion(id);
 };

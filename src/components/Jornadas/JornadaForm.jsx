@@ -36,7 +36,7 @@ const JornadaForm = ({ onClose, onSave }) => {
 
   const handlePriceChange = (id, newPrice) => {
     setSelectedServices(selectedServices.map(s => 
-      s.id_servicio === id ? { ...s, precio_oferta_usd: parseFloat(newPrice) || 0 } : s
+      s.id_servicio === id ? { ...s, precio_oferta_usd: newPrice } : s
     ));
   };
 
@@ -51,7 +51,10 @@ const JornadaForm = ({ onClose, onSave }) => {
       fecha_inicio: fechaInicio,
       fecha_fin: fechaFin,
       activa: 1,
-      servicios: selectedServices
+      servicios: selectedServices.map(s => ({
+        ...s,
+        precio_oferta_usd: parseFloat(s.precio_oferta_usd) || 0
+      }))
     });
 
     if (result.success) {

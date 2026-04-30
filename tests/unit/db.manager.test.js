@@ -109,7 +109,7 @@ describe('processInvoice - Persistencia ACID', () => {
     expect(insumo.stock_actual).toBe(98);
   });
 
-  it('debe crear asientos contables de ingreso y comisión', async () => {
+  it('debe crear asientos contables de ingreso únicamente (comisión se registra al liquidar)', async () => {
     await setupTestData();
 
     const invoiceData = {
@@ -129,12 +129,9 @@ describe('processInvoice - Persistencia ACID', () => {
     const db = getDb();
     const asientos = db.prepare('SELECT * FROM contabilidad_asientos ORDER BY id').all();
     
-    expect(asientos.length).toBe(2);
+    expect(asientos.length).toBe(1);
     expect(asientos[0].tipo).toBe('INGRESO');
     expect(asientos[0].debe_usd).toBe(30);
-    expect(asientos[1].tipo).toBe('EGRESO');
-    expect(asientos[1].categoria).toBe('COMISION');
-    expect(asientos[1].haber_usd).toBe(3);
   });
 
   it('debe calcular IVA para servicios no exentos', async () => {
