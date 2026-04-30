@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.1.1](https://github.com/bartolid159-ai/copia-programa-01/compare/v2.1.0...v2.1.1) (2026-04-30)
+
+
+### Bug Fixes
+
+* calculo de comisiones y borrado de liquidaciones con seguridad ([80a7aee](https://github.com/bartolid159-ai/copia-programa-01/commit/80a7aeecd71ef87a9b4e4376e91047f8d4c58be1))
+* correccion de calculo de comisiones y adicion de borrado de liquidaciones con clave ([1e305fe](https://github.com/bartolid159-ai/copia-programa-01/commit/1e305fe90b538431b098a38127655a0e49f6f670))
+* **test:** actualizar expectativa de ganancia_neta_usd en simulacro para reflejar deduccion de comisiones medicas ([d8c7c8d](https://github.com/bartolid159-ai/copia-programa-01/commit/d8c7c8d6f3a023afbe09c8b9477d909104d94771))
+
 ## [2.1.0](https://github.com/bartolid159-ai/copia-programa-01/compare/v2.0.0...v2.1.0) (2026-04-30)
 
 
