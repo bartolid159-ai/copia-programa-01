@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.1](https://github.com/bartolid159-ai/copia-programa-01/compare/v2.3.0...v2.3.1) (2026-04-30)
+
+
+### Bug Fixes
+
+* remover style jsx de ExpensesModule para evitar crash de Vite ([#12](https://github.com/bartolid159-ai/copia-programa-01/issues/12)) ([39e57f8](https://github.com/bartolid159-ai/copia-programa-01/commit/39e57f8801304501c4ca10724b18f54f1003bd54))
+
 ## [2.3.0](https://github.com/bartolid159-ai/copia-programa-01/compare/v2.2.0...v2.3.0) (2026-04-30)
 
 
