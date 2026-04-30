@@ -35,6 +35,11 @@ vi.mock('./logic/billingEngine', () => ({
   getRequiredInsumos: vi.fn(() => [])
 }));
 
+vi.mock('./logic/backupService', () => ({
+  crearBackup: vi.fn().mockResolvedValue(true),
+  limpiarBackupsAntiguos: vi.fn().mockResolvedValue(true)
+}));
+
 describe('App - Billing Integration', () => {
   it('debe mostrar la vista de facturación al hacer clic en Facturación', async () => {
     render(<App />);

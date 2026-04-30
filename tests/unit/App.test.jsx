@@ -2,14 +2,62 @@ import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/re
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import App from '../../src/App.jsx';
 
-// Mocking required logic
+// Mocking manager.js DIRECTLY is the most robust way to prevent ERR_DLOPEN_FAILED
+// by ensuring better-sqlite3 is NEVER even required during these UI tests.
+vi.mock('../../src/db/manager.js', () => {
+  const mockDb = {
+    prepare: vi.fn().mockReturnValue({
+      run: vi.fn().mockReturnValue({ lastInsertRowid: 1 }),
+      get: vi.fn().mockReturnValue(null),
+      all: vi.fn().mockReturnValue([]),
+    }),
+    exec: vi.fn(),
+    pragma: vi.fn(),
+    transaction: vi.fn((cb) => cb),
+    close: vi.fn(),
+  };
+
+  return {
+    getDb: vi.fn().mockReturnValue(mockDb),
+    closeDb: vi.fn(),
+    executeTransaction: vi.fn((cb) => cb(mockDb)),
+    insertCategoria: vi.fn().mockReturnValue({ lastInsertRowid: 1 }),
+    getAllCategorias: vi.fn().mockReturnValue([]),
+    insertInsumo: vi.fn().mockReturnValue({ lastInsertRowid: 1 }),
+    getAllInsumos: vi.fn().mockReturnValue([]),
+    getInsumoById: vi.fn().mockReturnValue(null),
+    searchInsumos: vi.fn().mockReturnValue([]),
+    getInsumosConStockBajo: vi.fn().mockReturnValue([]),
+    getAllPatients: vi.fn().mockReturnValue([]),
+    getAllDoctors: vi.fn().mockReturnValue([]),
+    getAllServices: vi.fn().mockReturnValue([]),
+    getDashboardStats: vi.fn().mockResolvedValue({ 
+      kpis: { ingresos_totales: 0, egresos_totales: 0, ganancia_neta: 0, margen_neto: 0, is_margen_contribucion: false }, 
+      trend: [] 
+    }),
+    getKpiDia: vi.fn().mockReturnValue({ 
+      ingresos: { usd: 0, ves: 0 }, 
+      egresos: { usd: 0, ves: 0 }, 
+      ganancia_neta: { usd: 0, ves: 0 } 
+    }),
+    getFlujoDiario: vi.fn().mockReturnValue([])
+  };
+});
+
+// Also mock services to avoid any top-level execution logic
 vi.mock('../../src/logic/reportService', () => ({
   default: {
-    getDashboardStats: vi.fn().mockResolvedValue({ kpis: {}, trend: [] }),
+    getDashboardStats: vi.fn().mockResolvedValue({ 
+      kpis: { ingresos_totales: 0, egresos_totales: 0, ganancia_neta: 0, margen_neto: 0, is_margen_contribucion: false }, 
+      trend: [] 
+    }),
     getKpiDia: vi.fn().mockReturnValue({ ingresos: { usd: 0, ves: 0 }, egresos: { usd: 0, ves: 0 }, ganancia_neta: { usd: 0, ves: 0 } }),
     getFlujoDiario: vi.fn().mockReturnValue([])
   },
-  getDashboardStats: vi.fn().mockResolvedValue({ kpis: {}, trend: [] }),
+  getDashboardStats: vi.fn().mockResolvedValue({ 
+    kpis: { ingresos_totales: 0, egresos_totales: 0, ganancia_neta: 0, margen_neto: 0, is_margen_contribucion: false }, 
+    trend: [] 
+  }),
   getKpiDia: vi.fn().mockReturnValue({ ingresos: { usd: 0, ves: 0 }, egresos: { usd: 0, ves: 0 }, ganancia_neta: { usd: 0, ves: 0 } }),
   getFlujoDiario: vi.fn().mockReturnValue([])
 }));
@@ -20,6 +68,22 @@ vi.mock('../../src/logic/doctorService', () => ({
 
 vi.mock('../../src/logic/serviceLogic', () => ({
   getServices: vi.fn().mockResolvedValue([])
+}));
+
+vi.mock('../../src/logic/patientService', () => ({
+  searchPatients: vi.fn().mockResolvedValue([]),
+  getPatients: vi.fn().mockResolvedValue([])
+}));
+
+vi.mock('../../src/logic/backupService', () => ({
+  crearBackup: vi.fn().mockResolvedValue(true),
+  limpiarBackupsAntiguos: vi.fn().mockResolvedValue(true)
+}));
+
+vi.mock('../../src/logic/insumoLogic', () => ({
+  getInsumos: vi.fn().mockResolvedValue([]),
+  getCategorias: vi.fn().mockResolvedValue([]),
+  getInsumosConStockBajo: vi.fn().mockResolvedValue([])
 }));
 
 describe('App Component - Tarea 01', () => {
