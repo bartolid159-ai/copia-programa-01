@@ -288,7 +288,7 @@ const ExpensesModule = ({ onShowBanner }) => {
               <tbody>
                 {historial.length === 0 && (
                   <tr>
-                    <td colSpan="4" style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)', fontSize: '1.1rem' }}>
+                    <td colSpan="5" style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)', fontSize: '1.1rem' }}>
                       <div style={{ opacity: 0.3, fontSize: '3rem', marginBottom: '1rem' }}>💸</div>
                       No hay gastos registrados en el sistema.
                     </td>
