@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/bartolid159-ai/copia-programa-01/compare/v2.1.1...v2.2.0) (2026-04-30)
+
+
+### Features
+
+* ajustes contables y nuevos gráficos de ingresos ([574d249](https://github.com/bartolid159-ai/copia-programa-01/commit/574d249d724ddcc842e9cd4224f461a32dcf4b82))
+
 ## [2.1.1](https://github.com/bartolid159-ai/copia-programa-01/compare/v2.1.0...v2.1.1) (2026-04-30)
 
 
