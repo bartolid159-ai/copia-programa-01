@@ -12,7 +12,9 @@ vi.mock('../../src/db/manager.js', () => ({
   getInsumosByServicio: vi.fn(),
   setServicioInsumos: vi.fn(),
   insertInsumo: vi.fn(),
-  getAllInsumos: vi.fn()
+  getAllInsumos: vi.fn(),
+  getActiveJornada: vi.fn(),
+  getServiciosPorJornada: vi.fn()
 }));
 
 // Ensure we refer to mock mocks
