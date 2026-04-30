@@ -446,7 +446,7 @@ export const getIngresosPorServicio = (startDate = null, endDate = null) => {
     GROUP BY s.id
     ORDER BY ingresos_usd DESC
   `;
-  return db.prepare(query).all(...params).map(r => ({ nombre: r.nombre, ingresos_usd: round2(r.ingresos_usd || 0) }));
+  return getDb().prepare(query).all(...params).map(r => ({ nombre: r.nombre, ingresos_usd: round2(r.ingresos_usd || 0) }));
 };
 
 export const getIngresosPorMedico = (startDate = null, endDate = null) => {
@@ -476,7 +476,7 @@ export const getIngresosPorMedico = (startDate = null, endDate = null) => {
     GROUP BY f.id_medico
     ORDER BY ingresos_usd DESC
   `;
-  return db.prepare(query).all(...params).map(r => ({ nombre: r.nombre || 'Sin médico', ingresos_usd: round2(r.ingresos_usd || 0) }));
+  return getDb().prepare(query).all(...params).map(r => ({ nombre: r.nombre || 'Sin médico', ingresos_usd: round2(r.ingresos_usd || 0) }));
 };
 
 export default {

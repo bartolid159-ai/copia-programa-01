@@ -15,6 +15,11 @@ const InvoiceHistory = () => {
   const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
 
+  // Estado para Detalle/Impresión
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [invoiceDetails, setInvoiceDetails] = useState([]);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
   const meses = [
     { value: '01', label: 'Enero' }, { value: '02', label: 'Febrero' },
     { value: '03', label: 'Marzo' }, { value: '04', label: 'Abril' },
@@ -94,6 +99,22 @@ const InvoiceHistory = () => {
     }
   };
 
+  const handleViewInvoice = async (id) => {
+    try {
+      const fact = await manager.getFacturaById(id);
+      const dets = await manager.getFacturaDetalles(id);
+      setSelectedInvoice(fact);
+      setInvoiceDetails(dets || []);
+      setIsDetailModalOpen(true);
+    } catch (err) {
+      console.error('Error al cargar detalles de factura:', err);
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   const formatDate = (fecha) => {
     if (!fecha) return '—';
     const d = new Date(fecha);
@@ -112,7 +133,7 @@ const InvoiceHistory = () => {
           <input
             type="text"
             className="premium-input"
-            placeholder="🔍 Buscar por paciente, cédula o teléfono..."
+            placeholder="Buscar por paciente, cedula o telefono..."
             value={searchQuery}
             onChange={handleSearch}
             id="invoice-history-search"
@@ -133,6 +154,74 @@ const InvoiceHistory = () => {
           </select>
         </div>
       </div>
+
+      {/* Modal de Detalle / Recibo */}
+      {isDetailModalOpen && selectedInvoice && (
+        <div className="modal-overlay">
+          <div className="receipt-modal glassmorphism">
+            <div className="receipt-container" id="printable-receipt">
+              <div className="receipt-header">
+                <div className="logo-section">
+                  <h2 style={{ color: '#000', margin: 0 }}>CENTRO MÉDICO</h2>
+                  <p style={{ margin: 0, fontSize: '0.9rem' }}>RIF: J-12345678-9</p>
+                </div>
+                <div className="invoice-info">
+                  <h3 style={{ margin: 0 }}>FACTURA</h3>
+                  <p style={{ margin: 0, fontWeight: 700 }}>#{String(selectedInvoice.id).padStart(4, '0')}</p>
+                  <p style={{ margin: 0, fontSize: '0.8rem' }}>{formatDate(selectedInvoice.fecha)}</p>
+                </div>
+              </div>
+
+              <div className="receipt-body">
+                <div className="client-data">
+                  <p><strong>PACIENTE:</strong> {selectedInvoice.paciente_nombre}</p>
+                  <p><strong>CÉDULA/RIF:</strong> {selectedInvoice.paciente_cedula || '—'}</p>
+                  <p><strong>MÉTODO DE PAGO:</strong> {selectedInvoice.metodo_pago?.replace(/_/g, ' ')}</p>
+                  {selectedInvoice.detalle_pago && <p><strong>REF/DETALLE:</strong> {selectedInvoice.detalle_pago}</p>}
+                </div>
+
+                <table className="receipt-table">
+                  <thead>
+                    <tr>
+                      <th>Descripción</th>
+                      <th style={{ textAlign: 'right' }}>Cant.</th>
+                      <th style={{ textAlign: 'right' }}>Precio</th>
+                      <th style={{ textAlign: 'right' }}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invoiceDetails.map((det, idx) => (
+                      <tr key={idx}>
+                        <td>{det.nombre_servicio || 'Servicio'}</td>
+                        <td style={{ textAlign: 'right' }}>{det.cantidad}</td>
+                        <td style={{ textAlign: 'right' }}>${Number(det.precio_unitario_usd).toFixed(2)}</td>
+                        <td style={{ textAlign: 'right' }}>${(det.cantidad * det.precio_unitario_usd).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <div className="receipt-totals">
+                  <div className="total-row"><span>SUBTOTAL:</span><span>${Number(selectedInvoice.subtotal_usd || 0).toFixed(2)}</span></div>
+                  <div className="total-row"><span>IVA (16%):</span><span>${Number(selectedInvoice.iva_usd || 0).toFixed(2)}</span></div>
+                  <div className="total-row main-total"><span>TOTAL USD:</span><span>${Number(selectedInvoice.total_usd || 0).toFixed(2)}</span></div>
+                  <div className="total-row"><span>TOTAL BS (Tasa {selectedInvoice.tasa_cambio}):</span><span>Bs. {Number(selectedInvoice.total_ves || 0).toFixed(2)}</span></div>
+                </div>
+
+                <div className="receipt-footer">
+                  <p>¡Gracias por su confianza!</p>
+                  <p style={{ fontSize: '0.7rem', marginTop: '20px', opacity: 0.5 }}>Desarrollado por Antigravity Systems</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-actions no-print">
+              <button className="btn-secondary" onClick={() => setIsDetailModalOpen(false)}>Cerrar</button>
+              <button className="btn-primary" onClick={handlePrint}>🖨️ Imprimir Factura</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Contador */}
       <div style={{ marginBottom: '12px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
@@ -164,7 +253,7 @@ const InvoiceHistory = () => {
                 <th>Pago</th>
                 <th>Ref / Detalle</th>
                 <th>Estatus</th>
-                <th style={{ textAlign: 'center' }}>Acciones</th>
+                <th style={{ textAlign: 'center', minWidth: '100px' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -217,14 +306,24 @@ const InvoiceHistory = () => {
                     </span>
                   </td>
                   <td style={{ textAlign: 'center' }}>
-                    <button 
-                      className="btn-icon" 
-                      onClick={() => handleDeleteClick(f.id)}
-                      title="Eliminar Factura"
-                      style={{ color: '#ff4444', background: 'rgba(255, 68, 68, 0.1)', border: '1px solid rgba(255, 68, 68, 0.2)' }}
-                    >
-                      🗑️
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                      <button 
+                        className="btn-icon" 
+                        onClick={() => handleViewInvoice(f.id)}
+                        title="Ver Detalles / Imprimir"
+                        style={{ color: 'var(--accent-cyan)', background: 'rgba(6, 182, 212, 0.1)', border: '1px solid rgba(6, 182, 212, 0.2)' }}
+                      >
+                        📄
+                      </button>
+                      <button 
+                        className="btn-icon" 
+                        onClick={() => handleDeleteClick(f.id)}
+                        title="Eliminar Factura"
+                        style={{ color: '#ff4444', background: 'rgba(255, 68, 68, 0.1)', border: '1px solid rgba(255, 68, 68, 0.2)' }}
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -306,6 +405,73 @@ const InvoiceHistory = () => {
         }
         .btn-icon:hover {
           transform: scale(1.1);
+        }
+
+        /* Estilos Recibo e Impresión */
+        .receipt-modal {
+          width: 90%;
+          max-width: 600px;
+          background: rgba(15, 23, 42, 0.95);
+          border-radius: 16px;
+          padding: 24px;
+          border: 1px solid var(--border-color);
+          max-height: 90vh;
+          overflow-y: auto;
+        }
+        .receipt-container {
+          background: #fff;
+          color: #000;
+          padding: 40px;
+          border-radius: 4px;
+          font-family: 'Courier New', Courier, monospace;
+        }
+        .receipt-header {
+          display: flex;
+          justify-content: space-between;
+          border-bottom: 2px solid #000;
+          padding-bottom: 15px;
+          margin-bottom: 20px;
+        }
+        .receipt-body p { margin: 5px 0; font-size: 0.9rem; }
+        .receipt-table {
+          width: 100%;
+          margin: 20px 0;
+          border-collapse: collapse;
+        }
+        .receipt-table th { border-bottom: 1px solid #000; padding: 8px; font-size: 0.8rem; }
+        .receipt-table td { padding: 8px; font-size: 0.85rem; }
+        .receipt-totals {
+          border-top: 2px solid #000;
+          padding-top: 10px;
+          margin-top: 20px;
+        }
+        .total-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.9rem; }
+        .main-total { font-weight: 900; font-size: 1.1rem; margin: 10px 0; border-top: 1px solid #000; padding-top: 5px; }
+        .receipt-footer { text-align: center; margin-top: 40px; font-size: 0.8rem; border-top: 1px solid #eee; padding-top: 10px; }
+        
+        .modal-actions {
+          display: flex;
+          gap: 12px;
+          margin-top: 24px;
+          justify-content: flex-end;
+        }
+
+        @page { size: letter; margin: 0; }
+        @media print {
+          body * { visibility: hidden; }
+          #printable-receipt, #printable-receipt * { visibility: visible; }
+          #printable-receipt {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 2cm;
+            background: #fff !important;
+            color: #000 !important;
+          }
+          .no-print { display: none !important; }
         }
       `}</style>
     </div>

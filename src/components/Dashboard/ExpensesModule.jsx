@@ -6,8 +6,10 @@ import {
   insertAsientoManual,
   getHistorialEgresos,
   getCategoriasGastos,
-  insertCategoriaGasto
+  insertCategoriaGasto,
+  deleteAsientoManual
 } from '../../db/manager';
+import SecurityModal from '../Common/SecurityModal';
 
 const ExpensesModule = ({ onShowBanner }) => {
   const [activeTab, setActiveTab] = useState('register'); // 'register', 'history', 'templates'
@@ -23,6 +25,8 @@ const ExpensesModule = ({ onShowBanner }) => {
     nombre: '', 
     items: [] 
   });
+
+  const [securityModal, setSecurityModal] = useState({ show: false, expenseId: null });
   
   // Gasto único o Lote en proceso
   const [batchExpenses, setBatchExpenses] = useState([{
@@ -156,6 +160,20 @@ const ExpensesModule = ({ onShowBanner }) => {
     }
   };
 
+  const confirmDeleteExpense = (id) => {
+    setSecurityModal({ show: true, expenseId: id });
+  };
+
+  const handleDeleteExpense = async (id) => {
+    const result = await deleteAsientoManual(id);
+    if (result.success) {
+      onShowBanner('Gasto eliminado exitosamente', 'success');
+      loadHistory();
+    } else {
+      onShowBanner('Error al eliminar gasto', 'error');
+    }
+  };
+
   return (
     <div className="card glass-card fade-in" style={{ padding: '24px', minHeight: '500px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
@@ -262,8 +280,9 @@ const ExpensesModule = ({ onShowBanner }) => {
                 <tr>
                   <th style={{ width: '15%' }}>Fecha</th>
                   <th style={{ width: '45%' }}>Concepto / Descripción</th>
-                  <th style={{ width: '20%' }}>Categoría</th>
-                  <th style={{ width: '20%', textAlign: 'right' }}>Monto ($)</th>
+                  <th style={{ width: '15%' }}>Categoría</th>
+                  <th style={{ width: '15%', textAlign: 'right' }}>Monto ($)</th>
+                  <th style={{ width: '10%', textAlign: 'center' }}>Acción</th>
                 </tr>
               </thead>
               <tbody>
@@ -281,6 +300,16 @@ const ExpensesModule = ({ onShowBanner }) => {
                     <td style={{ fontWeight: '500' }}>{g.descripcion}</td>
                     <td><span className="badge-category">{g.categoria?.replace(/_/g, ' ')}</span></td>
                     <td style={{ textAlign: 'right', fontWeight: '700', color: '#ff4d4d', fontSize: '1.05rem' }}>-${parseFloat(g.haber_usd).toFixed(2)}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <button 
+                        className="btn-icon-danger" 
+                        onClick={() => confirmDeleteExpense(g.id)}
+                        title="Eliminar Gasto"
+                        style={{ margin: '0 auto' }}
+                      >
+                        🗑️
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -396,6 +425,14 @@ const ExpensesModule = ({ onShowBanner }) => {
             </form>
           )}
         </div>
+      {securityModal.show && (
+        <SecurityModal
+          onClose={() => setSecurityModal({ show: false, expenseId: null })}
+          onSuccess={() => {
+            handleDeleteExpense(securityModal.expenseId);
+            setSecurityModal({ show: false, expenseId: null });
+          }}
+        />
       )}
 
       {showCategoryModal && (
