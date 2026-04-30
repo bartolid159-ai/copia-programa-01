@@ -11,6 +11,22 @@ const InvoiceHistory = () => {
   // Seguridad y Borrado
   const [securityModal, setSecurityModal] = useState({ isOpen: false, invoiceId: null, error: '' });
 
+  // Estados de Segmentación
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+
+  const meses = [
+    { value: '01', label: 'Enero' }, { value: '02', label: 'Febrero' },
+    { value: '03', label: 'Marzo' }, { value: '04', label: 'Abril' },
+    { value: '05', label: 'Mayo' }, { value: '06', label: 'Junio' },
+    { value: '07', label: 'Julio' }, { value: '08', label: 'Agosto' },
+    { value: '09', label: 'Septiembre' }, { value: '10', label: 'Octubre' },
+    { value: '11', label: 'Noviembre' }, { value: '12', label: 'Diciembre' }
+  ];
+
+  const currentYear = new Date().getFullYear();
+  const años = Array.from({ length: 5 }, (_, i) => (currentYear - 2 + i).toString());
+
   const loadFacturas = useCallback(async (query = '') => {
     setIsLoading(true);
     try {
@@ -34,6 +50,23 @@ const InvoiceHistory = () => {
     const q = e.target.value;
     setSearchQuery(q);
     loadFacturas(q);
+    if (q) setSelectedMonth(''); // Si busca manual, quitamos filtro de mes
+  };
+
+  const handleMonthChange = (e) => {
+    const m = e.target.value;
+    setSelectedMonth(m);
+    const query = m ? `${selectedYear}-${m}` : selectedYear;
+    setSearchQuery(''); // Limpiar búsqueda manual
+    loadFacturas(query);
+  };
+
+  const handleYearChange = (e) => {
+    const y = e.target.value;
+    setSelectedYear(y);
+    const query = selectedMonth ? `${y}-${selectedMonth}` : y;
+    setSearchQuery('');
+    loadFacturas(query);
   };
 
   const handleDeleteClick = (id) => {
@@ -73,15 +106,32 @@ const InvoiceHistory = () => {
   return (
     <div className="patient-list animate-in">
 
-      {/* Buscador */}
-      <div className="form-group" style={{ marginBottom: '20px', maxWidth: '600px' }}>
-        <input
-          type="text"
-          placeholder="🔍 Buscar por paciente, cédula, teléfono o fecha..."
-          value={searchQuery}
-          onChange={handleSearch}
-          id="invoice-history-search"
-        />
+      {/* Buscador y Filtros */}
+      <div className="history-filters-container">
+        <div className="search-box">
+          <input
+            type="text"
+            className="premium-input"
+            placeholder="🔍 Buscar por paciente, cédula o teléfono..."
+            value={searchQuery}
+            onChange={handleSearch}
+            id="invoice-history-search"
+          />
+        </div>
+
+        <div className="segmentation-box">
+          <select className="premium-select" value={selectedMonth} onChange={handleMonthChange}>
+            <option value="">Todo el año</option>
+            {meses.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+          <select className="premium-select" value={selectedYear} onChange={handleYearChange}>
+            {años.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Contador */}
@@ -191,6 +241,73 @@ const InvoiceHistory = () => {
         onConfirm={handleConfirmDelete}
         onCancel={() => setSecurityModal({ isOpen: false, invoiceId: null, error: '' })}
       />
+      <style jsx>{`
+        .history-filters-container {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 16px;
+          margin-bottom: 24px;
+          flex-wrap: wrap;
+        }
+        .search-box { flex: 1; min-width: 300px; }
+        .segmentation-box { display: flex; gap: 10px; }
+        
+        .premium-input, .premium-select {
+          padding: 10px 16px;
+          border: 1px solid var(--border-color);
+          background: rgba(15, 23, 42, 0.4);
+          color: var(--text-main);
+          border-radius: 12px;
+          font-size: 0.95rem;
+          font-family: inherit;
+          outline: none;
+          transition: all 0.2s;
+        }
+        .premium-input { width: 100%; }
+        .premium-input:focus, .premium-select:focus {
+          border-color: var(--accent-cyan);
+          background: rgba(15, 23, 42, 0.6);
+          box-shadow: 0 0 15px rgba(6, 182, 212, 0.15);
+        }
+        
+        .premium-select {
+          cursor: pointer;
+          appearance: none;
+          padding-right: 36px;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2306b6d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 12px center;
+        }
+        .premium-select option {
+          background: #0f172a;
+          color: white;
+        }
+
+        .status-badge {
+          padding: 4px 10px;
+          border-radius: 20px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          text-transform: uppercase;
+        }
+        .status-badge.active { background: rgba(16,185,129,0.15); color: #10b981; }
+        .status-badge.inactive { background: rgba(239,68,68,0.15); color: #ef4444; }
+
+        .btn-icon {
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .btn-icon:hover {
+          transform: scale(1.1);
+        }
+      `}</style>
     </div>
   );
 };

@@ -220,6 +220,83 @@ const JornadaForm = ({ onClose, onSave }) => {
           justify-content: flex-end;
           gap: 12px;
         }
+
+        /* Estilos de Input unificados con el sistema */
+        .inv-input {
+          padding: 0.75rem 1rem;
+          border: 1px solid var(--border-color);
+          background: rgba(15, 23, 42, 0.4);
+          color: var(--text-main);
+          border-radius: 10px;
+          font-size: 0.95rem;
+          font-family: inherit;
+          outline: none;
+          transition: all 0.2s;
+          width: 100%;
+        }
+        .inv-input:focus {
+          border-color: var(--accent-cyan);
+          box-shadow: 0 0 0 2px rgba(6,182,212,0.15);
+          background: rgba(15, 23, 42, 0.6);
+        }
+        
+        /* Checkbox Personalizado */
+        input[type="checkbox"] {
+          appearance: none;
+          width: 20px;
+          height: 20px;
+          border: 1px solid var(--border-color);
+          border-radius: 6px;
+          background: rgba(15, 23, 42, 0.5);
+          cursor: pointer;
+          position: relative;
+          transition: all 0.2s;
+        }
+        input[type="checkbox"]:checked {
+          background: var(--accent-cyan);
+          border-color: var(--accent-cyan);
+        }
+        input[type="checkbox"]:checked::after {
+          content: '✓';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          color: #000;
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        /* Ajuste para inputs de fecha */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+          filter: invert(1);
+          cursor: pointer;
+          opacity: 0.6;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator:hover {
+          opacity: 1;
+        }
+
+        .promo-input {
+          max-width: 100px;
+          padding: 8px 12px;
+          border-radius: 8px;
+          background: rgba(15, 23, 42, 0.6);
+          border: 1px solid var(--border-color);
+          color: var(--accent-cyan);
+          font-weight: 700;
+          outline: none;
+          transition: all 0.2s;
+        }
+        .promo-input:focus {
+          border-color: var(--accent-cyan);
+          box-shadow: 0 0 10px rgba(6,182,212,0.2);
+        }
+
+        .service-selector-item:hover {
+          border-color: rgba(6,182,212,0.3);
+          background: rgba(15, 23, 42, 0.5);
+        }
       `}</style>
     </div>
   );

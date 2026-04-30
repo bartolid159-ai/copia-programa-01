@@ -121,13 +121,35 @@ const SecurityModal = ({
           transform: translateY(-2px);
         }
 
+        .security-modal input {
+          width: 100%;
+          padding: 12px 16px;
+          background: rgba(15, 23, 42, 0.5);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          color: white;
+          font-family: inherit;
+          font-size: 1rem;
+          outline: none;
+          transition: all 0.3s ease;
+          text-align: center;
+          letter-spacing: 0.2em;
+        }
+
+        .security-modal input:focus {
+          border-color: var(--accent-cyan);
+          background: rgba(15, 23, 42, 0.8);
+          box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+        }
+
         .input-error {
           border-color: #ff4444 !important;
           background: rgba(255, 68, 68, 0.05) !important;
+          box-shadow: 0 0 10px rgba(255, 68, 68, 0.1) !important;
         }
 
         .error-text {
-          color: #ff4444; font-size: 0.8rem; margin-top: 4px; display: block;
+          color: #ff4444; font-size: 0.8rem; margin-top: 8px; display: block; font-weight: 600;
         }
       `}</style>
     </div>
