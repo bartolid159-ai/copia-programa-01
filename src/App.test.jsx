@@ -14,16 +14,17 @@ vi.mock('./logic/doctorService', () => ({
   ])
 }));
 
-vi.mock('./logic/reportService', () => ({
-  default: {
+vi.mock('./logic/reportService', async () => {
+  const actual = await vi.importActual('./logic/reportService');
+  return {
+    ...actual,
     getDashboardStats: vi.fn().mockResolvedValue({ kpis: {}, trend: [] }),
     getKpiDia: vi.fn().mockReturnValue({ ingresos: { usd: 0, ves: 0 }, egresos: { usd: 0, ves: 0 }, ganancia_neta: { usd: 0, ves: 0 } }),
-    getFlujoDiario: vi.fn().mockReturnValue([])
-  },
-  getDashboardStats: vi.fn().mockResolvedValue({ kpis: {}, trend: [] }),
-  getKpiDia: vi.fn().mockReturnValue({ ingresos: { usd: 0, ves: 0 }, egresos: { usd: 0, ves: 0 }, ganancia_neta: { usd: 0, ves: 0 } }),
-  getFlujoDiario: vi.fn().mockReturnValue([])
-}));
+    getFlujoDiario: vi.fn().mockReturnValue([]),
+    getIngresosPorServicio: vi.fn().mockResolvedValue([]),
+    getIngresosPorMedico: vi.fn().mockResolvedValue([])
+  };
+});
 
 vi.mock('./logic/serviceLogic', () => ({
   getServices: vi.fn().mockResolvedValue([])

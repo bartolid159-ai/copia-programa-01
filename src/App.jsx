@@ -12,7 +12,6 @@ import StockAlertWidget from './components/Dashboard/StockAlertWidget';
 import RevenueChart from './components/Dashboard/RevenueChart';
 import Banner from './components/Common/Banner';
 import Dashboard from './components/Dashboard/Dashboard';
-import CashClosing from './components/Settings/CashClosing';
 import JornadaPanel from './components/Jornadas/JornadaPanel';
 import SuppliesList from './components/Supplies/SuppliesList';
 import SupplyForm from './components/Supplies/SupplyForm';
@@ -163,10 +162,9 @@ function App() {
     switch (activeView) {
       case 'accounting': return 'Contabilidad / Dashboard';
       case 'patients': return 'Gestión de Pacientes';
+      case 'billing': return 'Facturación';
       case 'doctors': return 'Gestión de Médicos';
       case 'services': return 'Gestión de Servicios';
-      case 'billing': return 'Facturación';
-      case 'cashClosing': return 'Cierre de Caja';
       case 'supplies': return 'Inventario';
       case 'purchases': return 'Compras';
       case 'liquidation': return 'Liquidación de Médicos';
@@ -183,10 +181,9 @@ function App() {
         </div>
         <ul className="nav-links">
           <li className={activeView === 'patients' ? 'active' : ''} onClick={() => setActiveView('patients')}>Pacientes</li>
+          <li className={activeView === 'billing' ? 'active' : ''} onClick={() => { setActiveView('billing'); setBillingSubView('form'); }}>Facturación</li>
           <li className={activeView === 'doctors' ? 'active' : ''} onClick={() => setActiveView('doctors')}>Médicos</li>
           <li className={activeView === 'services' ? 'active' : ''} onClick={() => setActiveView('services')}>Servicios</li>
-          <li className={activeView === 'billing' ? 'active' : ''} onClick={() => { setActiveView('billing'); setBillingSubView('form'); }}>Facturación</li>
-          <li className={activeView === 'cashClosing' ? 'active' : ''} onClick={() => setActiveView('cashClosing')}>Caja (Cierre)</li>
           <li className={activeView === 'supplies' ? 'active' : ''} onClick={() => setActiveView('supplies')}>Inventario</li>
           <li className={activeView === 'purchases' ? 'active' : ''} onClick={() => setActiveView('purchases')}>Compras</li>
           <li className={activeView === 'liquidation' ? 'active' : ''} onClick={() => setActiveView('liquidation')}>Liquidación</li>
@@ -302,8 +299,6 @@ function App() {
           <JornadaPanel />
         )}
 
-
-
         {activeView === 'billing' && billingSubView === 'form' && (
           <InvoiceForm
             key={lastInvoiceKey}
@@ -318,9 +313,6 @@ function App() {
           <InvoiceHistory />
         )}
 
-        {activeView === 'cashClosing' && (
-          <CashClosing />
-        )}
 
         {showPatientForm && (
           <PatientForm 

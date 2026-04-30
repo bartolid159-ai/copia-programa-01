@@ -184,7 +184,7 @@ describe('processInvoice - Persistencia ACID', () => {
     expect(detalles[0].precio_unitario_usd).toBe(50);
   });
 
-  test('debe guardar y recuperar el método de pago y detalle de la factura', () => {
+  it('debe guardar y recuperar el método de pago y detalle de la factura', () => {
     // Insertar datos necesarios para FK
     const p = insertPaciente({
       cedula_rif: 'V-PAY-TEST', nombre: 'Test Pago', sexo: 'M',
@@ -220,16 +220,17 @@ describe('processInvoice - Persistencia ACID', () => {
     expect(guardada.detalle_pago).toBe('9999');
   });
 
-  test('debe usar EFECTIVO_USD por defecto si no se especifica el método', () => {
+  it('debe usar EFECTIVO_USD por defecto si no se especifica el método', () => {
     const p = insertPaciente({
       cedula_rif: 'V-DEF-TEST', nombre: 'Test Default', sexo: 'M',
       fecha_nacimiento: '1990-01-01', telefono: '123', correo: 'b@b.com', direccion: 'x'
     });
+    
     const m = insertMedico({
       nombre: 'Dr. Default', cedula_rif: 'V-DOC-DEF', telefono: '456',
       correo: 'e@e.com', especialidad: 'X', porcentaje_comision: 10
     });
-
+    
     const invoiceData = {
       id_paciente: p.lastInsertRowid,
       id_medico: m.lastInsertRowid,
@@ -239,11 +240,73 @@ describe('processInvoice - Persistencia ACID', () => {
       commission: 0,
       requiredInsumos: []
     };
-
+    
+    console.log('Test IDs:', { paciente: p.lastInsertRowid, medico: m.lastInsertRowid });
     const result = processInvoice(invoiceData);
     const facturas = getAllFacturas();
     const guardada = facturas.find(f => f.id === (result.facturaId || result.id_factura));
     
     expect(guardada.metodo_pago).toBe('EFECTIVO_USD');
+  });
+
+  it('debe registrar gasto extra de servicio y reflejarlo en contabilidad', async () => {
+    const p = insertPaciente({
+      cedula_rif: 'V-GASTO-01', nombre: 'Paciente Gasto', sexo: 'M',
+      fecha_nacimiento: '1990-01-01', telefono: '04120000000',
+      correo: 'gasto@test.com', direccion: 'Caracas'
+    });
+
+    const m = insertMedico({
+      nombre: 'Dr. Gasto', cedula_rif: 'V-MED-GASTO', telefono: '04140000000',
+      correo: 'dr.gasto@test.com', especialidad: 'Test', porcentaje_comision: 10
+    });
+
+    insertCategoria('Material Médico');
+    insertInsumo({
+      codigo: 'G-002', nombre: 'Guantes Test', descripcion: 'Para gasto test',
+      id_categoria: 1, stock_actual: 100, stock_minimo: 10,
+      unidad_medida: 'Par', costo_unitario_usd: 0.50
+    });
+
+    const s = insertServicio({
+      nombre: 'Servicio con Gasto', precio_usd: 20, es_exento: 1,
+      id_medico_defecto: m.lastInsertRowid,
+      gasto_descripcion: 'Gasto operativo test', gasto_precio_usd: 5
+    });
+
+    setServicioInsumos(s.lastInsertRowid, [{ id_insumo: 1, cantidad: 2 }]);
+
+    const invoiceData = {
+      id_paciente: p.lastInsertRowid, id_medico: m.lastInsertRowid, tasa_cambio: 36,
+      items: [{ id_servicio: s.lastInsertRowid, cantidad: 1, precio_usd: 20, es_exento: true }],
+      totals: { subtotal_usd: 20, iva_usd: 0, total_usd: 20, total_ves: 720 },
+      commission: 2, requiredInsumos: [{ id_insumo: 1, cantidad_total: 2 }]
+    };
+
+    console.log('Gasto Test IDs:', { p: p.lastInsertRowid, m: m.lastInsertRowid, s: s.lastInsertRowid });
+    const result = processInvoice(invoiceData);
+    expect(result.success).toBe(true);
+
+    const db = getDb();
+    const asientos = db.prepare('SELECT * FROM contabilidad_asientos ORDER BY id').all();
+
+    // 1 Ingreso, 1 Egreso Insumo, 1 Egreso Gasto Extra
+    expect(asientos.length).toBe(3);
+
+    const ingreso = asientos.find(a => a.tipo === 'INGRESO');
+    expect(ingreso.debe_usd).toBe(20);
+
+    const egresoInsumo = asientos.find(a => a.categoria === 'COSTO_INSUMO');
+    expect(egresoInsumo.haber_usd).toBe(1);
+
+    const egresoGasto = asientos.find(a => a.categoria === 'GASTO_OPERATIVO');
+    expect(egresoGasto).toBeDefined();
+    expect(egresoGasto.haber_usd).toBe(5);
+
+    const totalIngresos = asientos.filter(a => a.tipo === 'INGRESO').reduce((sum, a) => sum + a.debe_usd, 0);
+    const totalEgresos = asientos.filter(a => a.tipo === 'EGRESO').reduce((sum, a) => sum + a.haber_usd, 0);
+    expect(totalIngresos).toBe(20);
+    expect(totalEgresos).toBe(6);
+    expect(totalIngresos - totalEgresos).toBe(14);
   });
 });

@@ -57,14 +57,18 @@ vi.mock('../../src/logic/reportService', () => ({
       trend: [] 
     }),
     getKpiDia: vi.fn().mockReturnValue({ ingresos: { usd: 0, ves: 0 }, egresos: { usd: 0, ves: 0 }, ganancia_neta: { usd: 0, ves: 0 } }),
-    getFlujoDiario: vi.fn().mockReturnValue([])
+    getFlujoDiario: vi.fn().mockReturnValue([]),
+    getIngresosPorServicio: vi.fn().mockResolvedValue([]),
+    getIngresosPorMedico: vi.fn().mockResolvedValue([])
   },
   getDashboardStats: vi.fn().mockResolvedValue({ 
     kpis: { ingresos_totales: 0, egresos_totales: 0, ganancia_neta: 0, margen_neto: 0, is_margen_contribucion: false }, 
     trend: [] 
   }),
   getKpiDia: vi.fn().mockReturnValue({ ingresos: { usd: 0, ves: 0 }, egresos: { usd: 0, ves: 0 }, ganancia_neta: { usd: 0, ves: 0 } }),
-  getFlujoDiario: vi.fn().mockReturnValue([])
+  getFlujoDiario: vi.fn().mockReturnValue([]),
+  getIngresosPorServicio: vi.fn().mockResolvedValue([]),
+  getIngresosPorMedico: vi.fn().mockResolvedValue([])
 }));
 
 vi.mock('../../src/logic/doctorService', () => ({

@@ -6,6 +6,8 @@ import TopServicesWidget from './TopServicesWidget';
 import RateHistoryWidget from './RateHistoryWidget';
 import DashboardFilters from './DashboardFilters';
 import ExpensesModule from './ExpensesModule';
+import IncomeByServiceChart from './IncomeByServiceChart';
+import IncomeByDoctorChart from './IncomeByDoctorChart';
 import { getDashboardStats } from '../../logic/reportService';
 
 function Dashboard() {
@@ -92,6 +94,12 @@ function Dashboard() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px' }}>
               <TopServicesWidget />
               <RateHistoryWidget />
+            </div>
+
+            {/* Fila 3: Gráficos de Ingresos por Servicio y Médico */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px' }}>
+              <IncomeByServiceChart startDate={filters.startDate} endDate={filters.endDate} />
+              <IncomeByDoctorChart startDate={filters.startDate} endDate={filters.endDate} />
             </div>
 
           </div>

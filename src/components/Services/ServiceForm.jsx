@@ -7,7 +7,9 @@ const ServiceForm = ({ onSave, onCancel, service = null }) => {
     nombre: '',
     precio_usd: '',
     es_exento: true,
-    id_medico_defecto: ''
+    id_medico_defecto: '',
+    gasto_descripcion: '',
+    gasto_precio_usd: ''
   });
 
   const [insumosList, setInsumosList] = useState(service?.insumos || []);
@@ -72,6 +74,7 @@ const ServiceForm = ({ onSave, onCancel, service = null }) => {
       ...formData,
       precio_usd: Number(formData.precio_usd),
       id_medico_defecto: formData.id_medico_defecto ? Number(formData.id_medico_defecto) : null,
+      gasto_precio_usd: formData.gasto_precio_usd ? Number(formData.gasto_precio_usd) : 0,
       insumos: insumosList
     };
 
@@ -141,6 +144,35 @@ const ServiceForm = ({ onSave, onCancel, service = null }) => {
               onChange={handleChange} 
             />
             <label htmlFor="es_exento" style={{ cursor: 'pointer', marginBottom: 0 }}>Servicio Exento de IVA</label>
+          </div>
+
+          <hr className="full-width" style={{ margin: '15px 0', border: '0', borderTop: '1px solid var(--border-color)' }} />
+
+          {/* Sección 2: Gasto Adicional Opcional */}
+          <h4 style={{ gridColumn: '1 / -1', marginTop: '10px' }}>Gasto Adicional (Opcional)</h4>
+          <p className="subtitle full-width" style={{ marginTop: '-10px', marginBottom: '10px' }}>Registre un gasto operativo recurrente por servicio (ej. costo de procesamiento, gasolina, etc.)</p>
+          
+          <div className="form-group">
+            <label>Descripción del Gasto</label>
+            <input 
+              type="text" 
+              name="gasto_descripcion" 
+              value={formData.gasto_descripcion} 
+              onChange={handleChange} 
+              placeholder="Ej. Costo procesamiento"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Monto del Gasto (USD)</label>
+            <input 
+              type="number" 
+              step="0.01" 
+              name="gasto_precio_usd" 
+              value={formData.gasto_precio_usd} 
+              onChange={handleChange} 
+              placeholder="0.00"
+            />
           </div>
 
           <hr className="full-width" style={{ margin: '15px 0', border: '0', borderTop: '1px solid var(--border-color)' }} />

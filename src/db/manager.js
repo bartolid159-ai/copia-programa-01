@@ -25,6 +25,7 @@ const JORNADA_SERVICIOS_KEY = 'clinica_jornadas_servicios_db';
 
 
 let dbInstance = null;
+let currentDbPath = null;
 
 
 /**
@@ -50,7 +51,17 @@ export function getDb(dbPath = null, loadSchema = true) {
   
   // Fallback to default path
   const defaultPath = process.env.NODE_ENV === 'test' ? ':memory:' : 'data.sqlite';
-  return initializeDb(dbPath || defaultPath, loadSchema);
+  const targetPath = dbPath || defaultPath;
+  if (dbInstance && currentDbPath === targetPath) return dbInstance;
+  
+  // If there's an instance and the path is different, close it first
+  if (dbInstance && currentDbPath && currentDbPath !== targetPath) {
+    closeDb();
+  }
+  
+  dbInstance = initializeDb(targetPath, loadSchema);
+  currentDbPath = targetPath;
+  return dbInstance;
 }
 
 function initializeDb(dbPath, loadSchema) {
@@ -61,10 +72,8 @@ function initializeDb(dbPath, loadSchema) {
     transaction: (cb) => cb
   };
   
-  if (dbInstance) return dbInstance;
-  
   const isMemory = dbPath === ':memory:' || dbPath.startsWith(':memory:');
-
+  
   let Database, fs, pth;
   try {
     // Escapar del bundler para evitar errores en navegador
@@ -93,6 +102,7 @@ function initializeDb(dbPath, loadSchema) {
   // Initialize DB
   try {
     dbInstance = new Database(dbPath);
+    currentDbPath = dbPath;
 
     // Pragmas for performance and enforcing foreign keys (ACID bounds)
     dbInstance.pragma('journal_mode = WAL');
@@ -134,6 +144,7 @@ export function closeDb() {
   if (dbInstance) {
     dbInstance.close();
     dbInstance = null;
+    currentDbPath = null;
   }
 }
 
@@ -366,10 +377,17 @@ export const getAllCategorias = () => {
 export const insertServicio = (data) => {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO servicios (nombre, precio_usd, es_exento, id_medico_defecto)
-    VALUES (@nombre, @precio_usd, @es_exento, @id_medico_defecto)
+    INSERT INTO servicios (nombre, precio_usd, es_exento, id_medico_defecto, gasto_descripcion, gasto_precio_usd)
+    VALUES (@nombre, @precio_usd, @es_exento, @id_medico_defecto, @gasto_descripcion, @gasto_precio_usd)
   `);
-  return stmt.run(data);
+  return stmt.run({
+    nombre: data.nombre,
+    precio_usd: data.precio_usd,
+    es_exento: data.es_exento,
+    id_medico_defecto: data.id_medico_defecto || null,
+    gasto_descripcion: data.gasto_descripcion || null,
+    gasto_precio_usd: data.gasto_precio_usd || 0
+  });
 };
 
 export const updateServicio = (data) => {
@@ -379,7 +397,9 @@ export const updateServicio = (data) => {
     SET nombre = @nombre, 
         precio_usd = @precio_usd, 
         es_exento = @es_exento, 
-        id_medico_defecto = @id_medico_defecto
+        id_medico_defecto = @id_medico_defecto,
+        gasto_descripcion = @gasto_descripcion,
+        gasto_precio_usd = @gasto_precio_usd
     WHERE id = @id
   `);
   return stmt.run(data);
@@ -605,6 +625,26 @@ export const processInvoice = (invoiceData) => {
             referencia_id: facturaId
           });
         }
+      }
+    }
+
+    // 5. Gastos Extra de Servicios (Gasto Operativo)
+    const getServicio = db.prepare('SELECT gasto_descripcion, gasto_precio_usd FROM servicios WHERE id = ?');
+    for (const item of items) {
+      const servicio = getServicio.get(item.id_servicio);
+      if (servicio && servicio.gasto_precio_usd > 0) {
+        const gastoUsd = round2(servicio.gasto_precio_usd * item.cantidad);
+        insertAsiento.run({
+          tipo: 'EGRESO',
+          categoria: 'GASTO_OPERATIVO',
+          debe_usd: 0,
+          haber_usd: gastoUsd,
+          debe_ves: 0,
+          haber_ves: round2(gastoUsd * tasa_cambio),
+          tasa_referencia: tasa_cambio,
+          descripcion: `Factura #${facturaId} - Gasto operativo: ${servicio.gasto_descripcion || 'Servicio ID ' + item.id_servicio}`,
+          referencia_id: facturaId
+        });
       }
     }
 

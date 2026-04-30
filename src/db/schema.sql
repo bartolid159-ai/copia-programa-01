@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS pacientes (
 -- Tabla de Médicos
 CREATE TABLE IF NOT EXISTS medicos (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  nombre TEXT_NOT_NULL,
+  nombre TEXT NOT NULL,
   cedula_rif TEXT,
   telefono TEXT,
   correo TEXT,
@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS servicios (
   precio_usd REAL,
   es_exento BOOLEAN DEFAULT 1,
   id_medico_defecto INTEGER,
+  gasto_descripcion TEXT,
+  gasto_precio_usd REAL DEFAULT 0.0,
   FOREIGN KEY(id_medico_defecto) REFERENCES medicos(id)
 );
 

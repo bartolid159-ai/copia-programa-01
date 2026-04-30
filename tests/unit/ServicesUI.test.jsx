@@ -66,11 +66,11 @@ describe('Services UI - Functional Button Tests', () => {
 
     // Fill the form
     const nombreInput = screen.getByPlaceholderText(/Ej. Consulta/i);
-    const precioInput = screen.getByPlaceholderText('0.00');
+    const precioInput = screen.getAllByPlaceholderText('0.00')[0];
     
     fireEvent.change(nombreInput, { target: { value: 'Nueva Consulta', name: 'nombre' } });
     fireEvent.change(precioInput, { target: { value: '55.5', name: 'precio_usd' } });
-
+    
     const submitBtn = screen.getByText('Guardar Servicio');
     fireEvent.click(submitBtn);
 
