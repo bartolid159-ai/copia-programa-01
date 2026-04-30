@@ -8,6 +8,22 @@ function DashboardFilters({ filters, onFilterChange }) {
   const [isDoctorOpen, setIsDoctorOpen] = useState(false);
   const [isServiceOpen, setIsServiceOpen] = useState(false);
 
+  // Estados locales para los selectores de Mes/Año
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+
+  const meses = [
+    { value: '01', label: 'Enero' }, { value: '02', label: 'Febrero' },
+    { value: '03', label: 'Marzo' }, { value: '04', label: 'Abril' },
+    { value: '05', label: 'Mayo' }, { value: '06', label: 'Junio' },
+    { value: '07', label: 'Julio' }, { value: '08', label: 'Agosto' },
+    { value: '09', label: 'Septiembre' }, { value: '10', label: 'Octubre' },
+    { value: '11', label: 'Noviembre' }, { value: '12', label: 'Diciembre' }
+  ];
+
+  const currentYear = new Date().getFullYear();
+  const años = Array.from({ length: 5 }, (_, i) => (currentYear - 2 + i).toString());
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -21,6 +37,33 @@ function DashboardFilters({ filters, onFilterChange }) {
     };
     fetchData();
   }, []);
+
+  const updateDateRange = (month, year) => {
+    if (!month) {
+      // Si no hay mes, filtramos todo el año
+      onFilterChange('startDate', `${year}-01-01`);
+      onFilterChange('endDate', `${year}-12-31`);
+    } else {
+      // Filtramos el mes específico
+      const start = `${year}-${month}-01`;
+      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+      const end = `${year}-${month}-${lastDay}`;
+      onFilterChange('startDate', start);
+      onFilterChange('endDate', end);
+    }
+  };
+
+  const handleMonthChange = (e) => {
+    const m = e.target.value;
+    setSelectedMonth(m);
+    updateDateRange(m, selectedYear);
+  };
+
+  const handleYearChange = (e) => {
+    const y = e.target.value;
+    setSelectedYear(y);
+    updateDateRange(selectedMonth, y);
+  };
 
   const handleMultiChange = (type, value) => {
     const current = filters[type] || [];
@@ -42,7 +85,42 @@ function DashboardFilters({ filters, onFilterChange }) {
 
   return (
     <div className="dashboard-filters animate-in">
-      {/* Filtro de Fecha */}
+      {/* Selector Rápido de Período */}
+      <div className="filter-group">
+        <label className="filter-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 2v20M2 12h20M12 2l4 4-4 4M12 22l-4-4 4-4" />
+          </svg>
+          Mes
+        </label>
+        <select 
+          className="filter-input"
+          value={selectedMonth}
+          onChange={handleMonthChange}
+          style={{ cursor: 'pointer' }}
+        >
+          <option value="">Todo el año</option>
+          {meses.map(m => (
+            <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="filter-group">
+        <label className="filter-label">Año</label>
+        <select 
+          className="filter-input"
+          value={selectedYear}
+          onChange={handleYearChange}
+          style={{ cursor: 'pointer' }}
+        >
+          {años.map(y => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Filtro de Fecha (Calendario Manual) */}
       <div className="filter-group">
         <label className="filter-label">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -57,7 +135,10 @@ function DashboardFilters({ filters, onFilterChange }) {
           type="date" 
           className="filter-input"
           value={filters.startDate}
-          onChange={(e) => onFilterChange('startDate', e.target.value)}
+          onChange={(e) => {
+            onFilterChange('startDate', e.target.value);
+            setSelectedMonth(''); // Reset mes si se toca manual
+          }}
         />
       </div>
 
@@ -67,7 +148,10 @@ function DashboardFilters({ filters, onFilterChange }) {
           type="date" 
           className="filter-input"
           value={filters.endDate}
-          onChange={(e) => onFilterChange('endDate', e.target.value)}
+          onChange={(e) => {
+            onFilterChange('endDate', e.target.value);
+            setSelectedMonth(''); // Reset mes si se toca manual
+          }}
         />
       </div>
 
@@ -139,6 +223,8 @@ function DashboardFilters({ filters, onFilterChange }) {
           onFilterChange('endDate', '');
           onFilterChange('medicos', []);
           onFilterChange('servicios', []);
+          setSelectedMonth('');
+          setSelectedYear(new Date().getFullYear().toString());
         }}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

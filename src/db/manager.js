@@ -1131,3 +1131,52 @@ export const deleteFactura = (id) => {
     return { success: true, message: 'Factura y registros asociados eliminados correctamente' };
   });
 };
+
+/**
+ * Elimina un paciente y todos sus registros asociados (facturas, detalles y asientos).
+ * @param {number} id - ID del paciente a eliminar
+ */
+export const deletePaciente = (id) => {
+  if (isBrowser) {
+    const patients = JSON.parse(localStorage.getItem(PATIENTS_KEY) || '[]');
+    const filtered = patients.filter(p => p.id !== id);
+    localStorage.setItem(PATIENTS_KEY, JSON.stringify(filtered));
+    
+    // Opcional: Limpiar facturas asociadas en localStorage
+    const invoices = JSON.parse(localStorage.getItem(INVOICES_KEY) || '[]');
+    const filteredInvoices = invoices.filter(inv => inv.id_paciente !== id);
+    localStorage.setItem(INVOICES_KEY, JSON.stringify(filteredInvoices));
+    
+    return { success: true, message: 'Paciente y datos asociados eliminados (Navegador)' };
+  }
+
+  return executeTransaction(() => {
+    const db = getDb();
+    
+    // 1. Obtener IDs de facturas del paciente
+    const facturas = db.prepare('SELECT id FROM facturas WHERE id_paciente = ?').all(id);
+    const facturaIds = facturas.map(f => f.id);
+    
+    if (facturaIds.length > 0) {
+      const placeholders = facturaIds.map(() => '?').join(',');
+      
+      // 2. Eliminar detalles de factura
+      db.prepare(`DELETE FROM factura_detalles WHERE id_factura IN (${placeholders})`).run(...facturaIds);
+      
+      // 3. Eliminar asientos contables asociados
+      db.prepare(`DELETE FROM contabilidad_asientos WHERE referencia_id IN (${placeholders}) AND categoria IN ('SERVICIO', 'COMISION', 'COSTO_INSUMO')`).run(...facturaIds);
+      
+      // 4. Eliminar facturas
+      db.prepare(`DELETE FROM facturas WHERE id_paciente = ?`).run(id);
+    }
+    
+    // 5. Eliminar el paciente
+    const result = db.prepare('DELETE FROM pacientes WHERE id = ?').run(id);
+    
+    if (result.changes === 0) {
+      throw new Error(`No se encontró el paciente con ID ${id}`);
+    }
+
+    return { success: true, message: 'Paciente y registros asociados eliminados correctamente' };
+  });
+};
