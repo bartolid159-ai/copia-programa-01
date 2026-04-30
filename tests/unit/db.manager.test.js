@@ -1,7 +1,7 @@
 /** @vitest-environment node */
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { getDb, closeDb, processInvoice, getFacturaById, getFacturaDetalles, getAllFacturas } from '../../src/db/manager.js';
-import { insertPaciente, insertMedico, insertServicio, insertInsumo, setServicioInsumos, insertCategoria } from '../../src/db/manager.js';
+import { insertPaciente, insertMedico, insertServicio, insertInsumo, setServicioInsumos, insertCategoria, insertAlquilerConsultorio, getAllAlquileres } from '../../src/db/manager.js';
 
 describe('processInvoice - Persistencia ACID', () => {
   beforeEach(() => {
@@ -308,5 +308,35 @@ describe('processInvoice - Persistencia ACID', () => {
     expect(totalIngresos).toBe(20);
     expect(totalEgresos).toBe(6);
     expect(totalIngresos - totalEgresos).toBe(14);
+    });
+
+  it('debe registrar un alquiler de consultorio y generar el asiento contable de ingreso', () => {
+    const data = {
+      nombre_arrendatario: 'Dr. Externo',
+      consultorio: 'Consultorio 2',
+      fecha: '2026-05-10',
+      turno: 'TARDE',
+      precio_usd: 25.0,
+      metodo_pago: 'EFECTIVO_USD'
+    };
+
+    const result = insertAlquilerConsultorio(data);
+    expect(result.lastInsertRowid).toBeDefined();
+
+    // Verificar que se creó el registro en la tabla de alquileres
+    const alquileres = getAllAlquileres();
+    const found = alquileres.find(a => a.id === result.lastInsertRowid);
+    expect(found).toBeDefined();
+    expect(found.nombre_arrendatario).toBe('Dr. Externo');
+    expect(found.consultorio).toBe('Consultorio 2');
+
+    // Verificar que se creó el asiento contable
+    const db = getDb();
+    const asiento = db.prepare("SELECT * FROM contabilidad_asientos WHERE categoria = 'ALQUILER_CONSULTORIO' AND referencia_id = ?").get(result.lastInsertRowid);
+    expect(asiento).toBeDefined();
+    expect(asiento.tipo).toBe('INGRESO');
+    expect(asiento.haber_usd).toBe(25.0);
+    expect(asiento.descripcion).toContain('Consultorio 2');
+    expect(asiento.descripcion).toContain('Dr. Externo');
   });
 });
