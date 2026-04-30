@@ -498,29 +498,31 @@ const LiquidacionPanel = ({ onShowBanner }) => {
                         </span>
                       </td>
                       <td>
-                        <button 
-                          className="btn-view" 
-                          style={{ background: 'rgba(6, 182, 212, 0.1)', color: 'var(--accent-cyan)' }}
-                          onClick={() => {
-                            setUltimoPago({
-                              ...l,
-                              medico: l.nombre_medico,
-                              fecha_pago: l.fecha_pago
-                            });
-                            setVerRecibo(true);
-                          }}
-                          title="Ver Recibo"
-                        >
-                          📄
-                        </button>
-                        <button 
-                          className="btn-view" 
-                          style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', marginLeft: '8px' }}
-                          onClick={() => handleDeleteClick(l.id)}
-                          title="Eliminar Pago"
-                        >
-                          🗑️
-                        </button>
+                        <div className="action-buttons" style={{ justifyContent: 'center' }}>
+                          <button 
+                            className="btn-view" 
+                            style={{ background: 'rgba(6, 182, 212, 0.1)', color: 'var(--accent-cyan)' }}
+                            onClick={() => {
+                              setUltimoPago({
+                                ...l,
+                                medico: l.nombre_medico,
+                                fecha_pago: l.fecha_pago
+                              });
+                              setVerRecibo(true);
+                            }}
+                            title="Ver Recibo"
+                          >
+                            📄
+                          </button>
+                          <button 
+                            className="btn-delete" 
+                            style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}
+                            onClick={() => handleDeleteClick(l.id)}
+                            title="Eliminar Pago"
+                          >
+                            🗑️
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -922,21 +924,65 @@ const LiquidacionPanel = ({ onShowBanner }) => {
           cursor: not-allowed;
         }
         
+        @page {
+          size: letter;
+          margin: 0;
+        }
         @media print {
-          body * { visibility: hidden; }
-          .recibo-container-printable, .recibo-container-printable * { visibility: visible; }
+          body { 
+            background: #fff !important; 
+            color: #000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            -webkit-print-color-adjust: exact;
+          }
+          /* Ocultar todo excepto el recibo */
+          body > *:not(.modal-overlay) {
+            display: none !important;
+          }
+          .modal-overlay {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            background: #fff !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: flex-start !important;
+            backdrop-filter: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .modal-content.recibo-modal {
+            position: relative !important;
+            width: 100% !important;
+            max-width: none !important;
+            height: auto !important;
+            min-height: 100% !important;
+            background: #fff !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
+          }
           .recibo-container-printable {
-             position: absolute;
-             left: 0;
-             top: 0;
-             width: 100%;
-             padding: 40px;
+             width: 100% !important;
+             max-width: 800px !important;
+             margin: 0 auto !important;
+             padding: 40px 60px !important;
              color: #000 !important;
              background: #fff !important;
+             visibility: visible !important;
           }
-          .recibo-container-printable * { color: #000 !important; }
-          .modal-overlay, .liquidacion-container, .invoice-layout { background: none !important; }
-          .modal-footer { display: none !important; }
+          .recibo-container-printable * { 
+            color: #000 !important; 
+            visibility: visible !important;
+          }
+          .modal-footer, .btn-close, .modal-header .btn-close { 
+            display: none !important; 
+          }
         }
       `}</style>
     </div>

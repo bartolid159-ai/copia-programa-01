@@ -8,7 +8,8 @@ import {
   getHistorialEgresos, 
   insertAsientoManual,
   insertGastoTemplate,
-  getGastoTemplates
+  getGastoTemplates,
+  deleteAsientoManual
 } from '../../src/db/manager.js';
 
 describe('Gestión de Gastos y Egresos', () => {
@@ -65,5 +66,52 @@ describe('Gestión de Gastos y Egresos', () => {
     const savedItems = JSON.parse(templates[0].items_json);
     expect(savedItems).toHaveLength(2);
     expect(savedItems[0].descripcion).toBe('Luz');
+  });
+
+  it('debe eliminar un egreso del historial correctamente', () => {
+    insertAsientoManual({
+      tipo: 'EGRESO',
+      categoria: 'GASTO_OPERATIVO',
+      debe_usd: 0,
+      haber_usd: 100,
+      debe_ves: 0,
+      haber_ves: 100,
+      tasa_referencia: 1,
+      descripcion: 'Gasto de Prueba',
+      fecha: '2026-05-01T12:00:00'
+    });
+
+    let historial = getHistorialEgresos();
+    const targetId = historial[0].id;
+    
+    const success = deleteAsientoManual(targetId);
+    expect(success).toBe(true);
+
+    historial = getHistorialEgresos();
+    expect(historial.find(a => a.id === targetId)).toBeUndefined();
+  });
+
+  it('no debe permitir eliminar un registro que no sea tipo EGRESO', () => {
+    // Insertamos un INGRESO manualmente (aunque usualmente vienen de facturas)
+    insertAsientoManual({
+      tipo: 'INGRESO',
+      categoria: 'HONORARIOS',
+      debe_usd: 100,
+      haber_usd: 0,
+      debe_ves: 100,
+      haber_ves: 0,
+      tasa_referencia: 1,
+      descripcion: 'Ingreso no borrable',
+      fecha: '2026-05-01T12:00:00'
+    });
+
+    const db = getDb();
+    const target = db.prepare("SELECT id FROM contabilidad_asientos WHERE tipo = 'INGRESO'").get();
+    
+    const success = deleteAsientoManual(target.id);
+    expect(success).toBe(false);
+
+    const exists = db.prepare("SELECT 1 FROM contabilidad_asientos WHERE id = ?").get(target.id);
+    expect(exists).toBeDefined();
   });
 });
