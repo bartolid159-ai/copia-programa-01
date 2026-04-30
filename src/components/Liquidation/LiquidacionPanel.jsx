@@ -924,64 +924,58 @@ const LiquidacionPanel = ({ onShowBanner }) => {
           cursor: not-allowed;
         }
         
-        @page {
-          size: letter;
-          margin: 0;
-        }
         @media print {
-          body { 
+          @page {
+            size: letter;
+            margin: 1cm;
+          }
+          /* Ocultar elementos de navegación y UI */
+          .sidebar, .dashboard-header, .top-bar, .modal-footer, .btn-close, .btn-procesar, .search-bar-container {
+            display: none !important;
+          }
+          
+          body, #root { 
             background: #fff !important; 
             color: #000 !important;
             margin: 0 !important;
             padding: 0 !important;
-            -webkit-print-color-adjust: exact;
+            height: auto !important;
+            overflow: visible !important;
           }
-          /* Ocultar todo excepto el recibo */
-          body > *:not(.modal-overlay) {
-            display: none !important;
-          }
+          
           .modal-overlay {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
+            position: static !important;
             background: #fff !important;
-            display: flex !important;
-            justify-content: center !important;
-            align-items: flex-start !important;
-            backdrop-filter: none !important;
+            display: block !important;
             padding: 0 !important;
             margin: 0 !important;
+            backdrop-filter: none !important;
           }
+          
           .modal-content.recibo-modal {
-            position: relative !important;
             width: 100% !important;
             max-width: none !important;
-            height: auto !important;
-            min-height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
             background: #fff !important;
             border: none !important;
             box-shadow: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
             display: block !important;
           }
+          
           .recibo-container-printable {
              width: 100% !important;
-             max-width: 800px !important;
-             margin: 0 auto !important;
-             padding: 40px 60px !important;
+             max-width: none !important;
+             margin: 0 !important;
+             padding: 0 !important;
              color: #000 !important;
              background: #fff !important;
              visibility: visible !important;
           }
+          
           .recibo-container-printable * { 
             color: #000 !important; 
             visibility: visible !important;
-          }
-          .modal-footer, .btn-close, .modal-header .btn-close { 
-            display: none !important; 
           }
         }
       `}</style>
