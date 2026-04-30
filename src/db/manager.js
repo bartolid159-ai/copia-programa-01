@@ -559,19 +559,8 @@ export const processInvoice = (invoiceData) => {
       referencia_id: facturaId
     });
 
-    if (commission > 0) {
-      insertAsiento.run({
-        tipo: 'EGRESO',
-        categoria: 'COMISION',
-        debe_usd: 0,
-        haber_usd: round2(commission),
-        debe_ves: 0,
-        haber_ves: round2(commission * tasa_cambio),
-        tasa_referencia: tasa_cambio,
-        descripcion: `Factura #${facturaId} - Comisión médica`,
-        referencia_id: facturaId
-      });
-    }
+    // Se elimina el registro automático de comisión aquí por requerimiento del usuario.
+    // El egreso se registrará únicamente cuando se realice la liquidación física.
 
     // 3. Stock y Lotes FIFO
     if (requiredInsumos && requiredInsumos.length > 0) {
@@ -804,6 +793,16 @@ export const registrarCompra = (compraData) => {
       });
     }
 
+    // Registrar Egreso en Contabilidad
+    db.prepare(`
+      INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, debe_ves, haber_ves, tasa_referencia, descripcion, referencia_id)
+      VALUES ('EGRESO', 'COMPRA_INVENTARIO', 0, @monto, 0, 0, 1, @desc, @ref)
+    `).run({
+      monto: totalUsd,
+      desc: `Compra ID #${compraId} - Abastecimiento de inventario`,
+      ref: compraId
+    });
+
     return { success: true, compraId, message: 'Compra y lote registrados correctamente' };
   });
 };
@@ -881,14 +880,14 @@ export const getResumenComisionesPorMedico = () => {
     const liquidaciones = JSON.parse(localStorage.getItem('clinica_liquidaciones_db') || '[]');
     
     return medicos.filter(m => m.activo).map(medico => {
-      const facturasMedico = facturas.filter(f => f.id_medico === medico.id);
+      const facturasMedico = facturas.filter(f => Number(f.id_medico) === Number(medico.id));
       const totalGenerado = facturasMedico.reduce((sum, f) => {
         const amount = f.total_usd || f.totals?.total_usd || 0;
-        return sum + (amount * (medico.porcentaje_comision / 100));
+        return sum + (amount * (Number(medico.porcentaje_comision || 0) / 100));
       }, 0);
       const totalPagado = liquidaciones
-        .filter(l => l.id_medico === medico.id)
-        .reduce((sum, l) => sum + l.monto_pagado_usd, 0);
+        .filter(l => Number(l.id_medico) === Number(medico.id))
+        .reduce((sum, l) => sum + (l.monto_pagado_usd || 0), 0);
       const saldoPendiente = Math.max(0, totalGenerado - totalPagado);
       
       return {
@@ -910,23 +909,12 @@ export const getResumenComisionesPorMedico = () => {
       m.nombre,
       m.especialidad,
       m.porcentaje_comision,
-      COALESCE(SUM(ca.haber_usd), 0)        AS total_generado_usd,
-      COALESCE(
-        (SELECT SUM(lm.monto_pagado_usd)
-         FROM liquidaciones_medicos lm
-         WHERE lm.id_medico = m.id), 0)      AS total_pagado_usd,
-      COALESCE(SUM(ca.haber_usd), 0) -
-      COALESCE(
-        (SELECT SUM(lm.monto_pagado_usd)
-         FROM liquidaciones_medicos lm
-         WHERE lm.id_medico = m.id), 0)      AS saldo_pendiente_usd
+      COALESCE((SELECT SUM(f.total_usd * (m.porcentaje_comision / 100.0)) FROM facturas f WHERE f.id_medico = m.id), 0) AS total_generado_usd,
+      COALESCE((SELECT SUM(lm.monto_pagado_usd) FROM liquidaciones_medicos lm WHERE lm.id_medico = m.id), 0) AS total_pagado_usd,
+      COALESCE((SELECT SUM(f.total_usd * (m.porcentaje_comision / 100.0)) FROM facturas f WHERE f.id_medico = m.id), 0) -
+      COALESCE((SELECT SUM(lm.monto_pagado_usd) FROM liquidaciones_medicos lm WHERE lm.id_medico = m.id), 0) AS saldo_pendiente_usd
     FROM medicos m
-    LEFT JOIN facturas f    ON f.id_medico = m.id
-    LEFT JOIN contabilidad_asientos ca
-              ON ca.referencia_id = f.id
-             AND ca.categoria = 'COMISION'
     WHERE m.activo = 1
-    GROUP BY m.id
     ORDER BY saldo_pendiente_usd DESC
   `);
   return stmt.all();
@@ -940,7 +928,7 @@ export const getComisionesMedico = (idMedico, fechaDesde, fechaHasta) => {
     const facturas = JSON.parse(localStorage.getItem(INVOICES_KEY) || '[]');
     const liquidaciones = JSON.parse(localStorage.getItem('clinica_liquidaciones_db') || '[]');
     
-    let facturasMedico = facturas.filter(f => f.id_medico === idMedico);
+    let facturasMedico = facturas.filter(f => Number(f.id_medico) === Number(idMedico));
     
     if (fechaDesde) {
       facturasMedico = facturasMedico.filter(f => new Date(f.fecha) >= new Date(fechaDesde));
@@ -958,10 +946,10 @@ export const getComisionesMedico = (idMedico, fechaDesde, fechaHasta) => {
       };
     });
     
-    const pagos = liquidaciones.filter(l => l.id_medico === idMedico);
+    const pagos = liquidaciones.filter(l => Number(l.id_medico) === Number(idMedico));
     
-    const totalGenerado = facturasConComision.reduce((sum, f) => sum + f.comision_calculada, 0);
-    const totalPagado = pagos.reduce((sum, l) => sum + l.monto_pagado_usd, 0);
+    const totalGenerado = facturasConComision.reduce((sum, f) => sum + (f.comision_calculada || 0), 0);
+    const totalPagado = pagos.reduce((sum, l) => sum + (l.monto_pagado_usd || 0), 0);
     
     return {
       medico,
@@ -1051,23 +1039,35 @@ export const insertLiquidacion = (data) => {
     VALUES (@id_medico, @fecha_pago, @monto_pagado_usd, @tasa_cambio, @monto_pagado_ves, @metodo_pago, @notas)
   `);
   
-  const result = stmt.run({
-    id_medico: data.id_medico,
-    fecha_pago: data.fecha_pago || new Date().toISOString().split('T')[0],
-    monto_pagado_usd: data.monto_pagado_usd,
-    tasa_cambio: data.tasa_cambio || 1,
-    monto_pagado_ves: data.monto_pagado_ves || 0,
-    metodo_pago: data.metodo_pago || 'EFECTIVO_USD',
-    notas: data.notas || ''
-  });
-  
-  return { success: true, id: result.lastInsertRowid };
+    const result = stmt.run({
+      id_medico: data.id_medico,
+      fecha_pago: data.fecha_pago || new Date().toISOString().split('T')[0],
+      monto_pagado_usd: data.monto_pagado_usd,
+      tasa_cambio: data.tasa_cambio || 1,
+      monto_pagado_ves: data.monto_pagado_ves || 0,
+      metodo_pago: data.metodo_pago || 'EFECTIVO_USD',
+      notas: data.notas || ''
+    });
+
+    // Registrar Egreso en Contabilidad
+    db.prepare(`
+      INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, debe_ves, haber_ves, tasa_referencia, descripcion, referencia_id)
+      VALUES ('EGRESO', 'PAGO_MEDICO', 0, @monto, 0, @monto_ves, @tasa, @desc, @ref)
+    `).run({
+      monto: data.monto_pagado_usd,
+      monto_ves: data.monto_pagado_ves,
+      tasa: data.tasa_cambio || 1,
+      desc: `Liquidación ID #${result.lastInsertRowid} - Pago a médico`,
+      ref: result.lastInsertRowid
+    });
+    
+    return { success: true, id: result.lastInsertRowid };
 };
 
 export const getLiquidacionesMedico = (idMedico) => {
   if (isBrowser) {
     const liquidaciones = JSON.parse(localStorage.getItem('clinica_liquidaciones_db') || '[]');
-    return liquidaciones.filter(l => l.id_medico === idMedico).sort((a, b) => new Date(b.fecha_pago) - new Date(a.fecha_pago));
+    return liquidaciones.filter(l => Number(l.id_medico) === Number(idMedico)).sort((a, b) => new Date(b.fecha_pago) - new Date(a.fecha_pago));
   }
 
   const db = getDb();
@@ -1084,7 +1084,7 @@ export const getAllLiquidaciones = () => {
     const liquidaciones = JSON.parse(localStorage.getItem('clinica_liquidaciones_db') || '[]');
     const doctors = getAllDoctors();
     return liquidaciones.map(l => {
-      const dr = doctors.find(d => d.id === l.id_medico);
+      const dr = doctors.find(d => Number(d.id) === Number(l.id_medico));
       return {
         ...l,
         nombre_medico: dr ? dr.nombre : 'Médico Desconocido'
@@ -1131,6 +1131,35 @@ export const deleteFactura = (id) => {
     }
 
     return { success: true, message: 'Factura y registros asociados eliminados correctamente' };
+  });
+};
+
+/**
+ * Elimina un registro de liquidación (pago a médico) y su asiento contable asociado.
+ * @param {number} id - ID de la liquidación a eliminar
+ */
+export const deleteLiquidacion = (id) => {
+  if (isBrowser) {
+    const liquidaciones = JSON.parse(localStorage.getItem('clinica_liquidaciones_db') || '[]');
+    const filtered = liquidaciones.filter(l => Number(l.id) !== Number(id));
+    localStorage.setItem('clinica_liquidaciones_db', JSON.stringify(filtered));
+    return { success: true, message: 'Liquidación eliminada (Navegador)' };
+  }
+
+  return executeTransaction(() => {
+    const db = getDb();
+    
+    // 1. Eliminar asiento contable asociado
+    db.prepare("DELETE FROM contabilidad_asientos WHERE referencia_id = ? AND categoria = 'PAGO_MEDICO'").run(id);
+    
+    // 2. Eliminar la liquidación
+    const result = db.prepare('DELETE FROM liquidaciones_medicos WHERE id = ?').run(id);
+    
+    if (result.changes === 0) {
+      throw new Error(`No se encontró la liquidación con ID ${id}`);
+    }
+
+    return { success: true, message: 'Liquidación y registro contable eliminados correctamente' };
   });
 };
 
@@ -1282,4 +1311,121 @@ export const getServiciosPorJornada = (id_jornada) => {
   }
   const db = getDb();
   return db.prepare('SELECT * FROM jornadas_servicios WHERE id_jornada = ?').all(id_jornada);
+};
+
+/**
+ * Gestión de Gastos y Plantillas
+ */
+export const insertGastoTemplate = (data) => {
+  if (isBrowser) {
+    const templates = JSON.parse(localStorage.getItem('clinica_gasto_templates') || '[]');
+    const id = templates.length > 0 ? Math.max(...templates.map(t => t.id)) + 1 : 1;
+    templates.push({ ...data, id });
+    localStorage.setItem('clinica_gasto_templates', JSON.stringify(templates));
+    return { success: true, id };
+  }
+  const db = getDb();
+  const stmt = db.prepare('INSERT INTO plantillas_gastos_fijos (nombre, monto_estimado_usd, categoria, descripcion, items_json) VALUES (?, ?, ?, ?, ?)');
+  return stmt.run(data.nombre, data.monto_estimado_usd || 0, data.categoria || 'GASTO_OPERATIVO', data.descripcion || '', data.items_json || null);
+};
+
+export const getGastoTemplates = () => {
+  if (isBrowser) return JSON.parse(localStorage.getItem('clinica_gasto_templates') || '[]');
+  const db = getDb();
+  return db.prepare('SELECT * FROM plantillas_gastos_fijos').all();
+};
+
+export const deleteGastoTemplate = (id) => {
+  if (isBrowser) {
+    const templates = JSON.parse(localStorage.getItem('clinica_gasto_templates') || '[]');
+    localStorage.setItem('clinica_gasto_templates', JSON.stringify(templates.filter(t => t.id !== id)));
+    return { success: true };
+  }
+  const db = getDb();
+  return db.prepare('DELETE FROM plantillas_gastos_fijos WHERE id = ?').run(id);
+};
+
+export const insertAsientoManual = (data) => {
+  if (isBrowser) {
+    const asientos = JSON.parse(localStorage.getItem('clinica_asientos_manuales') || '[]');
+    asientos.push({ ...data, id: Date.now(), fecha: data.fecha || new Date().toISOString() });
+    localStorage.setItem('clinica_asientos_manuales', JSON.stringify(asientos));
+    return { success: true };
+  }
+  const db = getDb();
+  const stmt = db.prepare(`
+    INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, debe_ves, haber_ves, tasa_referencia, descripcion, fecha)
+    VALUES (@tipo, @categoria, @debe_usd, @haber_usd, @debe_ves, @haber_ves, @tasa_referencia, @descripcion, @fecha)
+  `);
+  const payload = {
+    ...data,
+    fecha: data.fecha || new Date().toISOString()
+  };
+  return stmt.run(payload);
+};
+
+export const getHistorialEgresos = () => {
+  if (isBrowser) {
+    const manuales = JSON.parse(localStorage.getItem('clinica_asientos_manuales') || '[]');
+    // En navegador, filtramos por tipo 'EGRESO'
+    return manuales.filter(a => a.tipo === 'EGRESO').sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  }
+  const db = getDb();
+  return db.prepare(`
+    SELECT * FROM contabilidad_asientos 
+    WHERE tipo = 'EGRESO' 
+    ORDER BY fecha DESC 
+    LIMIT 100
+  `).all();
+};
+
+export const getCategoriasGastos = () => {
+  const defaultCats = ['GASTO_OPERATIVO', 'NOMINA', 'ALQUILER', 'SERVICIOS', 'REPARACIONES', 'OTROS'];
+  
+  if (isBrowser) {
+    const custom = JSON.parse(localStorage.getItem('clinica_categorias_gastos') || '[]');
+    return [...new Set([...defaultCats, ...custom])];
+  }
+  
+  const db = getDb();
+  // Inicializar si está vacía
+  const count = db.prepare('SELECT COUNT(*) as count FROM categorias_gastos').get().count;
+  if (count === 0) {
+    const stmt = db.prepare('INSERT INTO categorias_gastos (nombre) VALUES (?)');
+    defaultCats.forEach(c => {
+      try { stmt.run(c); } catch(e) {}
+    });
+  }
+  
+  return db.prepare('SELECT nombre FROM categorias_gastos').all().map(r => r.nombre);
+};
+
+export const insertCategoriaGasto = (nombre) => {
+  if (!nombre) return;
+  const upper = nombre.toUpperCase().trim().replace(/\s+/g, '_');
+  
+  if (isBrowser) {
+    const custom = JSON.parse(localStorage.getItem('clinica_categorias_gastos') || '[]');
+    if (!custom.includes(upper)) {
+      custom.push(upper);
+      localStorage.setItem('clinica_categorias_gastos', JSON.stringify(custom));
+    }
+    return { success: true };
+  }
+  
+  const db = getDb();
+  try {
+    db.prepare('INSERT INTO categorias_gastos (nombre) VALUES (?)').run(upper);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+};
+
+/**
+ * Alerta de Liquidaciones Pendientes
+ */
+export const getPendingLiquidationsCount = () => {
+  const resumen = getResumenComisionesPorMedico();
+  return resumen.filter(r => r.saldo_pendiente_usd > 1).length; // Umbral de $1 para evitar centavos huérfanos
 };

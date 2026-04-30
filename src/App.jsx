@@ -19,6 +19,7 @@ import SupplyForm from './components/Supplies/SupplyForm';
 import PurchasesList from './components/Purchases/PurchasesList';
 import LiquidacionPanel from './components/Liquidation/LiquidacionPanel';
 import { crearBackup, limpiarBackupsAntiguos } from './logic/backupService';
+import { getPendingLiquidationsCount } from './db/manager';
 
 function App() {
   const [theme, setTheme] = useState('dark');
@@ -48,6 +49,7 @@ function App() {
   const [lastInvoiceKey, setLastInvoiceKey] = useState(0);
 
   const [banner, setBanner] = useState({ message: '', type: 'success' });
+  const [pendingLiqCount, setPendingLiqCount] = useState(0);
 
   // Aplicamos la clase "light-mode" al body cuando el estado cambie
   useEffect(() => {
@@ -72,6 +74,17 @@ function App() {
     window.addEventListener('beforeunload', triggerBackup);
     return () => window.removeEventListener('beforeunload', triggerBackup);
   }, []);
+
+  // Verificar liquidaciones pendientes
+  useEffect(() => {
+    const checkPending = async () => {
+      const count = await getPendingLiquidationsCount();
+      setPendingLiqCount(count);
+    };
+    checkPending();
+    const interval = setInterval(checkPending, 30000); // Cada 30 seg
+    return () => clearInterval(interval);
+  }, [activeView]); // Re-verificar al cambiar de vista
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
@@ -211,6 +224,30 @@ function App() {
             <button className="theme-toggle" onClick={toggleTheme}>
               {theme === 'light' ? '🌙 Modo Oscuro' : '☀️ Modo Claro'}
             </button>
+            
+            {pendingLiqCount > 0 && (
+              <div 
+                className="pending-alert fade-in" 
+                style={{ 
+                  background: 'rgba(239, 68, 68, 0.1)', 
+                  border: '1px solid #ef4444', 
+                  color: '#ef4444',
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setActiveView('liquidation')}
+              >
+                <span style={{ fontSize: '1rem' }}>⚠️</span>
+                Falta liquidación a médico
+              </div>
+            )}
+
             <div className="avatar">AD</div>
             <span>Administrador</span>
           </div>

@@ -32,12 +32,12 @@ describe('reportService (Bimoneda)', () => {
       const kpis = reportService.getKpiDia();
       
       expect(kpis.ingresos.usd).toBe(100);
-      expect(kpis.egresos.usd).toBe(30);
-      expect(kpis.ganancia_neta.usd).toBe(70);
+      expect(kpis.egresos.usd).toBe(10); // COSTO_INSUMO excluido de caja
+      expect(kpis.ganancia_neta.usd).toBe(90);
       
       expect(kpis.ingresos.ves).toBe(3650);
-      expect(kpis.egresos.ves).toBe(1095);
-      expect(kpis.ganancia_neta.ves).toBe(2555);
+      expect(kpis.egresos.ves).toBe(365); // Solo COMISION
+      expect(kpis.ganancia_neta.ves).toBe(3285);
     });
 
     it('debe retornar ceros si no hay movimientos hoy', () => {

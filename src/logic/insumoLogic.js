@@ -208,6 +208,22 @@ export const registrarCompra = async (compraData) => {
     }
     localStorage.setItem('clinica_compra_detalles', JSON.stringify(detallesLocal));
     saveBrowserInsumos(nuevosInsumos);
+
+    // Registrar Egreso en Contabilidad (Browser)
+    const asientos = JSON.parse(localStorage.getItem('clinica_asientos_manuales') || '[]');
+    asientos.push({
+      id: Date.now(),
+      tipo: 'EGRESO',
+      categoria: 'COMPRA_INVENTARIO',
+      debe_usd: 0,
+      haber_usd: totalUsd,
+      debe_ves: 0,
+      haber_ves: 0,
+      tasa_referencia: 1,
+      descripcion: `Compra ID #${compraId} - Abastecimiento de inventario`,
+      fecha: new Date().toISOString()
+    });
+    localStorage.setItem('clinica_asientos_manuales', JSON.stringify(asientos));
     
     return { success: true, compraId, message: 'Compra registrada correctamente (Navegador)' };
   }

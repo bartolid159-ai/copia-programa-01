@@ -218,6 +218,22 @@ CREATE TABLE IF NOT EXISTS jornadas_servicios (
   FOREIGN KEY(id_servicio) REFERENCES servicios(id) ON DELETE CASCADE
 );
 
+-- Categorías de Gastos Personalizadas
+CREATE TABLE IF NOT EXISTS categorias_gastos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT UNIQUE NOT NULL
+);
+
+-- Plantillas de Gastos Fijos (Tarea Contabilidad)
+CREATE TABLE IF NOT EXISTS plantillas_gastos_fijos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL,
+  monto_estimado_usd REAL DEFAULT 0.0,
+  categoria TEXT DEFAULT 'GASTO_OPERATIVO',
+  descripcion TEXT,
+  items_json TEXT -- Almacena array de ítems para plantillas múltiples
+);
+
 -- Índices de Optimización
 CREATE INDEX IF NOT EXISTS idx_contabilidad_fecha_cat ON contabilidad_asientos(fecha, categoria, tipo);
 CREATE INDEX IF NOT EXISTS idx_contabilidad_referencia ON contabilidad_asientos(referencia_id);

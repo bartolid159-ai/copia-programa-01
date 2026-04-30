@@ -5,17 +5,24 @@ import RevenueChart from './RevenueChart';
 import TopServicesWidget from './TopServicesWidget';
 import RateHistoryWidget from './RateHistoryWidget';
 import DashboardFilters from './DashboardFilters';
+import ExpensesModule from './ExpensesModule';
 import { getDashboardStats } from '../../logic/reportService';
 
 function Dashboard() {
+  const today = new Date();
+  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+  const todayStr = today.toISOString().split('T')[0];
+
   const [filters, setFilters] = useState({
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
+    startDate: firstDayOfMonth,
+    endDate: todayStr,
     medicos: [],
     servicios: []
   });
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   useEffect(() => {
     const loadStats = async () => {
@@ -38,34 +45,62 @@ function Dashboard() {
 
   return (
     <div className="dashboard-container fade-in">
-      <header className="dashboard-header">
+      <header className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div className="dashboard-title">
-          <h1>Flujo de Negocio Inteligente</h1>
-          <p className="dashboard-subtitle">Control de rentabilidad y métricas operativas (Real-Time)</p>
+          <h1>{activeTab === 'dashboard' ? 'Flujo de Negocio Inteligente' : 'Gestión de Gastos'}</h1>
+          <p className="dashboard-subtitle">
+            {activeTab === 'dashboard' 
+              ? 'Control de rentabilidad y métricas operativas (Real-Time)' 
+              : 'Registro y plantillas de egresos de la clínica'}
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            className={activeTab === 'dashboard' ? 'btn-primary' : 'btn-secondary'} 
+            onClick={() => setActiveTab('dashboard')}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontSize: '0.9rem' }}
+          >
+            📊 Tablero
+          </button>
+          <button 
+            className={activeTab === 'expenses' ? 'btn-primary' : 'btn-secondary'} 
+            onClick={() => setActiveTab('expenses')}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontSize: '0.9rem' }}
+          >
+            💸 Gestionar Gastos
+          </button>
         </div>
       </header>
 
-      {/* Filtros Granulares */}
-      <DashboardFilters filters={filters} onFilterChange={handleFilterChange} />
+      {activeTab === 'dashboard' ? (
+        <>
+          {/* Filtros Granulares */}
+          <DashboardFilters filters={filters} onFilterChange={handleFilterChange} />
 
-      {/* 1. KPIs Principales */}
-      <KpiPanel kpis={stats?.kpis} loading={loading} />
+          {/* 1. KPIs Principales */}
+          <KpiPanel kpis={stats?.kpis} loading={loading} />
 
-      <div className="dashboard-layout" style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        
-        {/* Fila 1: Gráfica y Alertas Stock */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px' }}>
-          <RevenueChart trendData={stats?.trend} loading={loading} />
-          <StockAlertWidget />
+          <div className="dashboard-layout" style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            
+            {/* Fila 1: Gráfica y Alertas Stock */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px' }}>
+              <RevenueChart trendData={stats?.trend} loading={loading} />
+              <StockAlertWidget />
+            </div>
+
+            {/* Fila 2: Pareto Real y Auditoría de Tasas */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px' }}>
+              <TopServicesWidget />
+              <RateHistoryWidget />
+            </div>
+
+          </div>
+        </>
+      ) : (
+        <div style={{ marginTop: '24px' }}>
+          <ExpensesModule onShowBanner={filters.onShowBanner || (() => {})} />
         </div>
-
-        {/* Fila 2: Pareto Real y Auditoría de Tasas */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px' }}>
-          <TopServicesWidget />
-          <RateHistoryWidget />
-        </div>
-
-      </div>
+      )}
     </div>
   );
 }

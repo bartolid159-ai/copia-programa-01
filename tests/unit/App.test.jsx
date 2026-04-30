@@ -40,7 +40,12 @@ vi.mock('../../src/db/manager.js', () => {
       egresos: { usd: 0, ves: 0 }, 
       ganancia_neta: { usd: 0, ves: 0 } 
     }),
-    getFlujoDiario: vi.fn().mockReturnValue([])
+    getFlujoDiario: vi.fn().mockReturnValue([]),
+    getPendingLiquidationsCount: vi.fn().mockReturnValue(0),
+    getGastoTemplates: vi.fn().mockResolvedValue([]),
+    insertGastoTemplate: vi.fn().mockResolvedValue({ lastInsertRowid: 1 }),
+    deleteGastoTemplate: vi.fn().mockResolvedValue({ success: true }),
+    insertAsientoManual: vi.fn().mockResolvedValue({ success: true })
   };
 });
 

@@ -59,7 +59,7 @@ describe('deleteFactura - Borrado Atómico y Seguridad Contable', () => {
     
     expect(facturasPrev.count).toBe(1);
     expect(detallesPrev.count).toBe(1);
-    expect(asientosPrev.count).toBe(2); // Ingreso y Comisión
+    expect(asientosPrev.count).toBe(1); // Solo Ingreso (Comisión se registra al liquidar)
 
     // Ejecutamos el borrado
     const result = deleteFactura(facturaId);

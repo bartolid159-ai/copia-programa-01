@@ -24,8 +24,8 @@ describe('Dashboard Contable - Flujo de Negocio', () => {
 
   it('debe calcular márgenes correctamente con una factura', () => {
     db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha) VALUES ('INGRESO', 'SERVICIO', 100, 0, '2026-04-29')").run();
-    db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha) VALUES ('EGRESO', 'COMISION', 0, 20, '2026-04-29')").run();
-    db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha, categoria) VALUES ('EGRESO', 'GASTO_OPERATIVO', 0, 10, '2026-04-29', 'GASTO_OPERATIVO')").run();
+    db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha) VALUES ('EGRESO', 'PAGO_MEDICO', 0, 20, '2026-04-29')").run();
+    db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha) VALUES ('EGRESO', 'GASTO_OPERATIVO', 0, 10, '2026-04-29')").run();
 
     const stats = getDashboardStats({ startDate: '2026-04-29', endDate: '2026-04-29' });
     
@@ -43,9 +43,9 @@ describe('Dashboard Contable - Flujo de Negocio', () => {
     db.prepare("INSERT INTO medicos (id, nombre) VALUES (99, 'Dr. Test')").run();
     db.prepare("INSERT INTO facturas (id, id_medico, total_usd) VALUES (1, 99, 100)").run();
     
-    // Asientos vinculados a la factura (Ingreso y Comisión)
+    // Asientos vinculados a la factura (Ingreso y Liquidación Médica)
     db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha, referencia_id) VALUES ('INGRESO', 'SERVICIO', 100, 0, '2026-04-29', 1)").run();
-    db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha, referencia_id) VALUES ('EGRESO', 'COMISION', 0, 20, '2026-04-29', 1)").run();
+    db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha, referencia_id) VALUES ('EGRESO', 'PAGO_MEDICO', 0, 20, '2026-04-29', 1)").run();
     
     // Asiento de gasto operativo (FIJO) - sin referencia_id o no vinculado al filtro
     db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha) VALUES ('EGRESO', 'GASTO_OPERATIVO', 0, 10, '2026-04-29')").run();
