@@ -1,6 +1,6 @@
 {
   "name": "constructor-programa-maestro",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Local-First administrative and accounting program",
   "main": "electron/main.cjs",
   "type": "module",
