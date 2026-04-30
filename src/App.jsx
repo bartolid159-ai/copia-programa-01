@@ -17,6 +17,7 @@ import SuppliesList from './components/Supplies/SuppliesList';
 import SupplyForm from './components/Supplies/SupplyForm';
 import PurchasesList from './components/Purchases/PurchasesList';
 import LiquidacionPanel from './components/Liquidation/LiquidacionPanel';
+import RentalList from './components/Rentals/RentalList';
 import { crearBackup, limpiarBackupsAntiguos } from './logic/backupService';
 import { getPendingLiquidationsCount } from './db/manager';
 
@@ -169,6 +170,7 @@ function App() {
       case 'purchases': return 'Compras';
       case 'liquidation': return 'Liquidación de Médicos';
       case 'jornadas': return 'Jornadas Médicas';
+      case 'rentals': return 'Alquiler de Consultorios';
       default: return 'Sistema de Gestión';
     }
   };
@@ -188,6 +190,7 @@ function App() {
           <li className={activeView === 'purchases' ? 'active' : ''} onClick={() => setActiveView('purchases')}>Compras</li>
           <li className={activeView === 'liquidation' ? 'active' : ''} onClick={() => setActiveView('liquidation')}>Liquidación</li>
           <li className={activeView === 'jornadas' ? 'active' : ''} onClick={() => setActiveView('jornadas')}>Jornadas</li>
+          <li className={activeView === 'rentals' ? 'active' : ''} onClick={() => setActiveView('rentals')}>Consultorios</li>
           <li className={activeView === 'accounting' ? 'active' : ''} onClick={() => setActiveView('accounting')}>Contabilidad</li>
         </ul>
       </nav>
@@ -297,6 +300,10 @@ function App() {
 
         {activeView === 'jornadas' && (
           <JornadaPanel />
+        )}
+
+        {activeView === 'rentals' && (
+          <RentalList onShowBanner={handleShowBanner} />
         )}
 
         {activeView === 'billing' && billingSubView === 'form' && (

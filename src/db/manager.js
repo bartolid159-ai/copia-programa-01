@@ -1469,3 +1469,88 @@ export const getPendingLiquidationsCount = () => {
   const resumen = getResumenComisionesPorMedico();
   return resumen.filter(r => r.saldo_pendiente_usd > 1).length; // Umbral de $1 para evitar centavos huérfanos
 };
+
+/**
+ * Módulo de Alquiler de Consultorios
+ */
+export const insertAlquilerConsultorio = (data) => {
+  if (isBrowser) {
+    const list = JSON.parse(localStorage.getItem('clinica_alquileres') || '[]');
+    const newAlquiler = {
+      ...data,
+      id: Date.now(),
+      created_at: new Date().toISOString()
+    };
+    list.push(newAlquiler);
+    localStorage.setItem('clinica_alquileres', JSON.stringify(list));
+    
+    // Registrar en contabilidad ficticia del navegador
+    const asientos = JSON.parse(localStorage.getItem('clinica_asientos_manuales') || '[]');
+    asientos.push({
+      id: Date.now() + 1,
+      fecha: data.fecha,
+      tipo: 'INGRESO',
+      categoria: 'ALQUILER_CONSULTORIO',
+      haber_usd: data.precio_usd,
+      descripcion: `Alquiler ${data.consultorio} - ${data.turno} (${data.nombre_arrendatario})`,
+      referencia_id: newAlquiler.id
+    });
+    localStorage.setItem('clinica_asientos_manuales', JSON.stringify(asientos));
+    
+    return { lastInsertRowid: newAlquiler.id };
+  }
+
+  const db = getDb();
+  return db.transaction(() => {
+    // 1. Insertar alquiler
+    const stmtAlquiler = db.prepare(`
+      INSERT INTO alquileres_consultorios (nombre_arrendatario, consultorio, fecha, turno, precio_usd, metodo_pago)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    const result = stmtAlquiler.run(
+      data.nombre_arrendatario,
+      data.consultorio,
+      data.fecha,
+      data.turno,
+      data.precio_usd,
+      data.metodo_pago
+    );
+    const alquilerId = result.lastInsertRowid;
+
+    // 2. Insertar asiento contable
+    const stmtAsiento = db.prepare(`
+      INSERT INTO contabilidad_asientos (fecha, tipo, categoria, haber_usd, descripcion, referencia_id)
+      VALUES (?, 'INGRESO', 'ALQUILER_CONSULTORIO', ?, ?, ?)
+    `);
+    stmtAsiento.run(
+      data.fecha + 'T12:00:00', // Forzamos una hora para el ISO
+      data.precio_usd,
+      `Alquiler ${data.consultorio} - ${data.turno} (${data.nombre_arrendatario})`,
+      alquilerId
+    );
+
+    return result;
+  })();
+};
+
+export const getAllAlquileres = () => {
+  if (isBrowser) return JSON.parse(localStorage.getItem('clinica_alquileres') || '[]');
+  const db = getDb();
+  return db.prepare('SELECT * FROM alquileres_consultorios ORDER BY fecha DESC, created_at DESC').all();
+};
+
+export const deleteAlquiler = (id) => {
+  if (isBrowser) {
+    const list = JSON.parse(localStorage.getItem('clinica_alquileres') || '[]').filter(a => a.id !== id);
+    localStorage.setItem('clinica_alquileres', JSON.stringify(list));
+    const asientos = JSON.parse(localStorage.getItem('clinica_asientos_manuales') || '[]').filter(a => a.referencia_id !== id);
+    localStorage.setItem('clinica_asientos_manuales', JSON.stringify(asientos));
+    return { changes: 1 };
+  }
+  const db = getDb();
+  return db.transaction(() => {
+    db.prepare('DELETE FROM contabilidad_asientos WHERE categoria = "ALQUILER_CONSULTORIO" AND referencia_id = ?').run(id);
+    return db.prepare('DELETE FROM alquileres_consultorios WHERE id = ?').run(id);
+  })();
+};
+

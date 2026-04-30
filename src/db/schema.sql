@@ -201,6 +201,18 @@ CREATE TABLE IF NOT EXISTS liquidaciones_medicos (
   FOREIGN KEY(id_medico) REFERENCES medicos(id)
 );
 
+-- Alquiler de Consultorios (Nueva Funcionalidad)
+CREATE TABLE IF NOT EXISTS alquileres_consultorios (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre_arrendatario TEXT NOT NULL,
+  consultorio TEXT NOT NULL, -- "Consultorio 1", "Consultorio 2", "Consultorio 3"
+  fecha DATE NOT NULL,
+  turno TEXT CHECK(turno IN ('MAÑANA', 'TARDE', 'DÍA COMPLETO')) NOT NULL,
+  precio_usd REAL NOT NULL,
+  metodo_pago TEXT DEFAULT 'EFECTIVO_USD',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Jornadas Médicas (Precios Promocionales)
 CREATE TABLE IF NOT EXISTS jornadas (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
