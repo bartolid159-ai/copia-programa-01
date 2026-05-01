@@ -75,9 +75,9 @@ export const getKpiDia = () => {
   const query = `
     SELECT 
       SUM(debe_usd) as ingresos_usd,
-      SUM(CASE WHEN categoria IN ('GASTO_OPERATIVO', 'PAGO_MEDICO', 'COMPRA_INVENTARIO', 'COMISION') THEN haber_usd ELSE 0 END) as egresos_usd,
+      SUM(CASE WHEN categoria IN ('GASTO_OPERATIVO', 'PAGO_MEDICO', 'COMPRA_INVENTARIO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN haber_usd ELSE 0 END) as egresos_usd,
       SUM(debe_ves) as ingresos_ves,
-      SUM(CASE WHEN categoria IN ('GASTO_OPERATIVO', 'PAGO_MEDICO', 'COMPRA_INVENTARIO', 'COMISION') THEN haber_ves ELSE 0 END) as egresos_ves
+      SUM(CASE WHEN categoria IN ('GASTO_OPERATIVO', 'PAGO_MEDICO', 'COMPRA_INVENTARIO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN haber_ves ELSE 0 END) as egresos_ves
     FROM contabilidad_asientos
     WHERE DATE(fecha) = ?
   `;
@@ -95,7 +95,8 @@ export const getKpiDia = () => {
 export const getTopServicios = (limite = 5) => {
   if (IS_BROWSER_MODE) {
     const facturas = _getFacturasLocal();
-    const doctors = JSON.parse(localStorage.getItem('clinica_doctors_db') || '[]');
+    const doctors  = JSON.parse(localStorage.getItem('clinica_doctors_db') || '[]');
+    const servicios = JSON.parse(localStorage.getItem('clinica_servicios') || '[]');
     const mapaServicios = {};
 
     for (const f of facturas) {
@@ -105,10 +106,13 @@ export const getTopServicios = (limite = 5) => {
       for (const item of items) {
         const nombre = item.nombre || 'Sin nombre';
         const precio = (item.precio_usd || 0) * (item.cantidad || 1);
-        const costo_comision = precio * comisionPorcentaje;
+        const costo_comision    = precio * comisionPorcentaje;
+        // Restar gasto extra asociado al servicio
+        const srv = servicios.find(s => Number(s.id) === Number(item.id_servicio));
+        const costo_gasto_extra = srv ? (Number(srv.gasto_precio_usd) || 0) * (item.cantidad || 1) : 0;
         if (!mapaServicios[nombre]) mapaServicios[nombre] = { nombre, ingresos_usd: 0, ganancia_neta_usd: 0 };
         mapaServicios[nombre].ingresos_usd     += precio;
-        mapaServicios[nombre].ganancia_neta_usd += (precio - costo_comision);
+        mapaServicios[nombre].ganancia_neta_usd += (precio - costo_comision - costo_gasto_extra);
       }
     }
 
@@ -282,10 +286,10 @@ export const getDashboardStats = (filters = {}) => {
       facturas = _filtrarPorFecha(facturas, startDate, endDate);
     }
 
-    // Calcular KPIs iterando sobre facturas
     // Calcular KPIs
     let ingresos_usd = 0;
-    let egresos_usd = 0;
+    let egresos_usd_totales = 0;
+    let egresos_usd_operativos = 0;
     const mapaFecha = {};
 
     // Egresos manuales y liquidaciones en el rango
@@ -300,25 +304,46 @@ export const getDashboardStats = (filters = {}) => {
     for (const f of facturas) {
       const ingreso = f.total_usd || 0;
       ingresos_usd += ingreso;
+
+      // ─── Sumar costos operativos guardados en la factura ─────────────
+      const egr_comision    = f.commission_usd ?? (f.commission ?? 0);
+      const egr_insumo      = f.costo_insumos_usd || 0;
+      const egr_gasto_extra = f.gasto_extra_usd || 0;
+      const egr_factura     = round2(egr_comision + egr_insumo + egr_gasto_extra);
+
+      egresos_usd_totales    += egr_factura;
+      egresos_usd_operativos += egr_factura;
+
       const dia = f.fecha ? f.fecha.split('T')[0] : 'sin-fecha';
-      if (!mapaFecha[dia]) mapaFecha[dia] = { fecha: dia, ingresos_usd: 0, egresos_usd: 0 };
-      mapaFecha[dia].ingresos_usd += ingreso;
+      if (!mapaFecha[dia]) mapaFecha[dia] = { fecha: dia, ingresos_usd: 0, egresos_usd_global: 0, egresos_usd_operativo: 0 };
+      mapaFecha[dia].ingresos_usd         += ingreso;
+      mapaFecha[dia].egresos_usd_global   += egr_factura;
+      mapaFecha[dia].egresos_usd_operativo += egr_factura;
     }
 
     liquidaciones.forEach(l => {
       const egr = l.monto_pagado_usd || 0;
-      egresos_usd += egr;
+      egresos_usd_totales += egr;
+      egresos_usd_operativos += egr;
       const dia = l.fecha_pago;
-      if (!mapaFecha[dia]) mapaFecha[dia] = { fecha: dia, ingresos_usd: 0, egresos_usd: 0 };
-      mapaFecha[dia].egresos_usd += egr;
+      if (!mapaFecha[dia]) mapaFecha[dia] = { fecha: dia, ingresos_usd: 0, egresos_usd_global: 0, egresos_usd_operativo: 0 };
+      mapaFecha[dia].egresos_usd_global += egr;
+      mapaFecha[dia].egresos_usd_operativo += egr;
     });
 
     manuales.forEach(a => {
       const egr = a.haber_usd || 0;
-      egresos_usd += egr;
+      egresos_usd_totales += egr;
+      const isOperativo = ['PAGO_MEDICO', 'COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO'].includes(a.categoria);
+      if (isOperativo) {
+          egresos_usd_operativos += egr;
+      }
       const dia = a.fecha?.split('T')[0];
-      if (!mapaFecha[dia]) mapaFecha[dia] = { fecha: dia, ingresos_usd: 0, egresos_usd: 0 };
-      mapaFecha[dia].egresos_usd += egr;
+      if (!mapaFecha[dia]) mapaFecha[dia] = { fecha: dia, ingresos_usd: 0, egresos_usd_global: 0, egresos_usd_operativo: 0 };
+      mapaFecha[dia].egresos_usd_global += egr;
+      if (isOperativo) {
+          mapaFecha[dia].egresos_usd_operativo += egr;
+      }
     });
 
     const trend = Object.values(mapaFecha)
@@ -326,19 +351,29 @@ export const getDashboardStats = (filters = {}) => {
       .map(r => ({
         fecha:            r.fecha,
         ingresos_usd:     round2(r.ingresos_usd),
-        egresos_usd:      round2(r.egresos_usd),
-        ganancia_neta_usd: round2(r.ingresos_usd - r.egresos_usd),
+        egresos_usd_global: round2(r.egresos_usd_global),
+        egresos_usd_operativo: round2(r.egresos_usd_operativo),
+        egresos_usd:      round2(r.egresos_usd_global),
+        ganancia_neta_usd: round2(r.ingresos_usd - r.egresos_usd_global),
       }));
 
-    const margen = ingresos_usd > 0 ? round2(((ingresos_usd - egresos_usd) / ingresos_usd) * 100) : 0;
+    const margenGlobal = ingresos_usd > 0 ? round2(((ingresos_usd - egresos_usd_totales) / ingresos_usd) * 100) : 0;
+    const margenOperativo = ingresos_usd > 0 ? round2(((ingresos_usd - egresos_usd_operativos) / ingresos_usd) * 100) : 0;
 
     return {
       kpis: {
-        ingresos_totales:     round2(ingresos_usd),
-        egresos_totales:      round2(egresos_usd),
-        ganancia_neta:        round2(ingresos_usd - egresos_usd),
-        margen_neto:          margen,
-        is_margen_contribucion: false,
+        globales: {
+          ingresos_totales: round2(ingresos_usd),
+          egresos_totales:  round2(egresos_usd_totales),
+          ganancia_neta:   round2(ingresos_usd - egresos_usd_totales),
+          margen_neto:     margenGlobal
+        },
+        operativos: {
+          ingresos_totales: round2(ingresos_usd),
+          egresos_totales:  round2(egresos_usd_operativos),
+          ganancia_neta:   round2(ingresos_usd - egresos_usd_operativos),
+          margen_neto:     margenOperativo
+        }
       },
       trend,
     };
@@ -370,26 +405,25 @@ export const getDashboardStats = (filters = {}) => {
   const kpiQuery = `
     SELECT 
       SUM(a.debe_usd) as ingresos_usd,
-      SUM(CASE WHEN a.categoria IN ('GASTO_OPERATIVO', 'PAGO_MEDICO', 'COMPRA_INVENTARIO', 'COMISION') THEN a.haber_usd ELSE 0 END) as egresos_usd,
-      SUM(CASE WHEN a.categoria IN ('GASTO_OPERATIVO', 'PAGO_MEDICO', 'COMPRA_INVENTARIO', 'COMISION') THEN a.haber_usd ELSE 0 END) as egresos_fijos,
-      SUM(CASE WHEN a.categoria IN ('PAGO_MEDICO', 'COSTO_INSUMO', 'COMISION') THEN a.haber_usd ELSE 0 END) as egresos_directos
+      SUM(CASE WHEN a.categoria IN ('GASTO_OPERATIVO', 'PAGO_MEDICO', 'COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_totales,
+      SUM(CASE WHEN a.categoria IN ('PAGO_MEDICO', 'COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_operativos
     FROM contabilidad_asientos a
     ${joinClause}
     WHERE ${whereClauses.join(' AND ')}
   `;
 
-  const kpis = db.prepare(kpiQuery).get(...params) || { ingresos_usd: 0, egresos_usd: 0, egresos_fijos: 0, egresos_directos: 0 };
+  const kpis = db.prepare(kpiQuery).get(...params) || { ingresos_usd: 0, egresos_usd_totales: 0, egresos_usd_operativos: 0 };
 
-  const isFiltrado = (medicos && medicos.length > 0) || (servicios && servicios.length > 0);
   const ingresos = kpis.ingresos_usd || 0;
-  const egresosParaMargen = isFiltrado ? (kpis.egresos_directos || 0) : (kpis.egresos_usd || 0);
-  const margen = ingresos > 0 ? round2(((ingresos - egresosParaMargen) / ingresos) * 100) : 0;
+  const margenGlobal = ingresos > 0 ? round2(((ingresos - (kpis.egresos_usd_totales || 0)) / ingresos) * 100) : 0;
+  const margenOperativo = ingresos > 0 ? round2(((ingresos - (kpis.egresos_usd_operativos || 0)) / ingresos) * 100) : 0;
 
   const flowQuery = `
     SELECT 
       DATE(a.fecha) as fecha_dia,
       SUM(a.debe_usd) as ingresos_usd,
-      SUM(CASE WHEN a.categoria IN ('GASTO_OPERATIVO', 'PAGO_MEDICO', 'COMPRA_INVENTARIO', 'COMISION') THEN a.haber_usd ELSE 0 END) as egresos_usd
+      SUM(CASE WHEN a.categoria IN ('GASTO_OPERATIVO', 'PAGO_MEDICO', 'COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_global,
+      SUM(CASE WHEN a.categoria IN ('PAGO_MEDICO', 'COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_operativo
     FROM contabilidad_asientos a
     ${joinClause}
     WHERE ${whereClauses.join(' AND ')}
@@ -397,19 +431,29 @@ export const getDashboardStats = (filters = {}) => {
     ORDER BY DATE(a.fecha) ASC
   `;
   const trend = db.prepare(flowQuery).all(...params).map(r => ({
-    fecha:            r.fecha_dia,
-    ingresos_usd:     round2(r.ingresos_usd || 0),
-    egresos_usd:      round2(r.egresos_usd  || 0),
-    ganancia_neta_usd: round2((r.ingresos_usd || 0) - (r.egresos_usd || 0)),
+    fecha:               r.fecha_dia,
+    ingresos_usd:        round2(r.ingresos_usd || 0),
+    egresos_usd_global:  round2(r.egresos_usd_global || 0),
+    egresos_usd_operativo: round2(r.egresos_usd_operativo || 0),
+    // Por compatibilidad con el gráfico actual, enviamos egresos_usd por defecto (global)
+    egresos_usd:         round2(r.egresos_usd_global || 0),
+    ganancia_neta_usd:   round2((r.ingresos_usd || 0) - (r.egresos_usd_global || 0)),
   }));
 
   return {
     kpis: {
-      ingresos_totales:     round2(ingresos),
-      egresos_totales:      round2(kpis.egresos_usd || 0),
-      ganancia_neta:        round2(ingresos - (kpis.egresos_usd || 0)),
-      margen_neto:          margen,
-      is_margen_contribucion: isFiltrado,
+      globales: {
+        ingresos_totales: round2(ingresos),
+        egresos_totales:  round2(kpis.egresos_usd_totales || 0),
+        ganancia_neta:   round2(ingresos - (kpis.egresos_usd_totales || 0)),
+        margen_neto:     margenGlobal
+      },
+      operativos: {
+        ingresos_totales: round2(ingresos),
+        egresos_totales:  round2(kpis.egresos_usd_operativos || 0),
+        ganancia_neta:   round2(ingresos - (kpis.egresos_usd_operativos || 0)),
+        margen_neto:     margenOperativo
+      }
     },
     trend,
   };

@@ -157,8 +157,8 @@ export function executeTransaction(callback) {
 export const insertPaciente = (data) => {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO pacientes (cedula_rif, nombre, sexo, fecha_nacimiento, telefono, correo, direccion)
-    VALUES (@cedula_rif, @nombre, @sexo, @fecha_nacimiento, @telefono, @correo, @direccion)
+    INSERT INTO pacientes (cedula_rif, nombre, sexo, edad, telefono, correo, direccion)
+    VALUES (@cedula_rif, @nombre, @sexo, @edad, @telefono, @correo, @direccion)
   `);
   return stmt.run(data);
 };
@@ -167,6 +167,22 @@ export const getPacienteByCedula = (cedula_rif) => {
   const db = getDb();
   const stmt = db.prepare('SELECT * FROM pacientes WHERE cedula_rif = ?');
   return stmt.get(cedula_rif);
+};
+
+export const updatePaciente = (data) => {
+  const db = getDb();
+  const stmt = db.prepare(`
+    UPDATE pacientes 
+    SET cedula_rif = @cedula_rif, 
+        nombre = @nombre, 
+        sexo = @sexo, 
+        edad = @edad, 
+        telefono = @telefono, 
+        correo = @correo, 
+        direccion = @direccion
+    WHERE id = @id
+  `);
+  return stmt.run(data);
 };
 
 export const searchPatients = (query) => {
@@ -366,10 +382,14 @@ export const getAllCategorias = () => {
 export const insertServicio = (data) => {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO servicios (nombre, precio_usd, es_exento, id_medico_defecto)
-    VALUES (@nombre, @precio_usd, @es_exento, @id_medico_defecto)
+    INSERT INTO servicios (nombre, precio_usd, es_exento, id_medico_defecto, gasto_precio_usd, gasto_descripcion)
+    VALUES (@nombre, @precio_usd, @es_exento, @id_medico_defecto, @gasto_precio_usd, @gasto_descripcion)
   `);
-  return stmt.run(data);
+  return stmt.run({
+    ...data,
+    gasto_precio_usd: data.gasto_precio_usd || 0,
+    gasto_descripcion: data.gasto_descripcion || null
+  });
 };
 
 export const updateServicio = (data) => {
@@ -379,10 +399,16 @@ export const updateServicio = (data) => {
     SET nombre = @nombre, 
         precio_usd = @precio_usd, 
         es_exento = @es_exento, 
-        id_medico_defecto = @id_medico_defecto
+        id_medico_defecto = @id_medico_defecto,
+        gasto_precio_usd = @gasto_precio_usd,
+        gasto_descripcion = @gasto_descripcion
     WHERE id = @id
   `);
-  return stmt.run(data);
+  return stmt.run({
+    ...data,
+    gasto_precio_usd: data.gasto_precio_usd || 0,
+    gasto_descripcion: data.gasto_descripcion || null
+  });
 };
 
 export const deleteServicio = (id) => {
@@ -483,30 +509,51 @@ export const processInvoice = (invoiceData) => {
   if (isBrowser && !isTest) {
     const invoices = JSON.parse(localStorage.getItem(INVOICES_KEY) || '[]');
     const facturaId = invoices.length > 0 ? Math.max(...invoices.map(i => i.id)) + 1 : 1;
-    const newInvoice = { 
-      ...invoiceData, 
-      id: facturaId, 
-      fecha: new Date().toISOString(), 
-      estatus: 'PAGADA',
-      metodo_pago: invoiceData.metodo_pago || 'EFECTIVO_USD',
-      detalle_pago: invoiceData.detalle_pago || ''
-    };
-    invoices.push(newInvoice);
-    localStorage.setItem(INVOICES_KEY, JSON.stringify(invoices));
-    
-    // Descontar stock de insumos en localStorage
+    const r2 = (n) => Math.round(n * 100) / 100;
+
+    // ─── Calcular costos operativos para contabilidad del Dashboard ─────
+    let costo_insumos_usd = 0;
+    let gasto_extra_usd   = 0;
+    const commission_usd  = r2(invoiceData.commission || 0);
+
+    // 1. Costo de insumos consumidos + descuento de stock
     const { requiredInsumos } = invoiceData;
     if (requiredInsumos && requiredInsumos.length > 0) {
       const insumos = JSON.parse(localStorage.getItem(INSUMOS_KEY) || '[]');
       for (const req of requiredInsumos) {
         const insumoIndex = insumos.findIndex(i => i.id === req.id_insumo);
         if (insumoIndex !== -1) {
+          costo_insumos_usd += (insumos[insumoIndex].costo_unitario_usd || 0) * req.cantidad_total;
           insumos[insumoIndex].stock_actual = Math.max(0, (insumos[insumoIndex].stock_actual || 0) - req.cantidad_total);
         }
       }
       localStorage.setItem(INSUMOS_KEY, JSON.stringify(insumos));
     }
-    
+
+    // 2. Gasto extra asociado a cada servicio facturado
+    const serviciosBrowser = JSON.parse(localStorage.getItem('clinica_servicios') || '[]');
+    for (const item of (invoiceData.items || [])) {
+      const srv = serviciosBrowser.find(s => Number(s.id) === Number(item.id_servicio));
+      if (srv && Number(srv.gasto_precio_usd) > 0) {
+        gasto_extra_usd += Number(srv.gasto_precio_usd) * (item.cantidad || 1);
+      }
+    }
+
+    const newInvoice = {
+      ...invoiceData,
+      id: facturaId,
+      fecha: new Date().toISOString(),
+      estatus: 'PAGADA',
+      metodo_pago: invoiceData.metodo_pago || 'EFECTIVO_USD',
+      detalle_pago: invoiceData.detalle_pago || '',
+      // Costos operativos pre-calculados para el Dashboard de Contabilidad
+      costo_insumos_usd: r2(costo_insumos_usd),
+      gasto_extra_usd:   r2(gasto_extra_usd),
+      commission_usd
+    };
+    invoices.push(newInvoice);
+    localStorage.setItem(INVOICES_KEY, JSON.stringify(invoices));
+
     return { success: true, facturaId, message: 'Factura procesada (Navegador)' };
   }
 
@@ -619,11 +666,48 @@ export const processInvoice = (invoiceData) => {
       }
     }
 
+    // 5. Gastos asociados a servicios (si existen)
+    for (const item of items) {
+      const srv = db.prepare('SELECT gasto_precio_usd, gasto_descripcion FROM servicios WHERE id = ?').get(item.id_servicio);
+      if (srv && srv.gasto_precio_usd > 0) {
+        const totalGasto = round2(srv.gasto_precio_usd * item.cantidad);
+        insertAsiento.run({
+          tipo: 'EGRESO',
+          categoria: 'GASTO_EXTRA_SERVICIO',
+          debe_usd: 0,
+          haber_usd: totalGasto,
+          debe_ves: 0,
+          haber_ves: round2(totalGasto * tasa_cambio),
+          tasa_referencia: tasa_cambio,
+          descripcion: `Factura #${facturaId} - ${srv.gasto_descripcion || 'Gasto extra de servicio'}`,
+          referencia_id: facturaId
+        });
+      }
+    }
+
     return { success: true, facturaId, message: 'Factura procesada (Bimoneda)' };
   });
 };
 
 export const getFacturaById = (id) => {
+  if (isBrowser) {
+    const invoices = JSON.parse(localStorage.getItem(INVOICES_KEY) || '[]');
+    const invoice = invoices.find(f => f.id === id);
+    if (!invoice) return null;
+    
+    // Simular joins con pacientes y medicos en browser
+    const patients = JSON.parse(localStorage.getItem(PATIENTS_KEY) || '[]');
+    const doctors = JSON.parse(localStorage.getItem(DOCTORS_KEY) || '[]');
+    const patient = patients.find(p => p.id === invoice.id_paciente);
+    const doctor = doctors.find(d => d.id === invoice.id_medico);
+    
+    return {
+      ...invoice,
+      paciente_nombre: patient ? patient.nombre : '—',
+      medico_nombre: doctor ? doctor.nombre : '—'
+    };
+  }
+
   const db = getDb();
   const stmt = db.prepare(`
     SELECT f.*, p.nombre AS paciente_nombre, m.nombre AS medico_nombre
@@ -636,6 +720,23 @@ export const getFacturaById = (id) => {
 };
 
 export const getFacturaDetalles = (id_factura) => {
+  if (isBrowser) {
+    const invoices = JSON.parse(localStorage.getItem(INVOICES_KEY) || '[]');
+    const invoice = invoices.find(f => f.id === id_factura);
+    if (!invoice || !invoice.items) return [];
+    
+    // En el modo browser guardamos los items dentro de la factura
+    // para simplificar el localStorage. Los mapeamos al formato de tabla.
+    const services = JSON.parse(localStorage.getItem('clinica_servicios') || '[]');
+    return invoice.items.map(item => {
+      const srv = services.find(s => s.id === item.id_servicio);
+      return {
+        ...item,
+        servicio_nombre: srv ? srv.nombre : 'Servicio Desconocido'
+      };
+    });
+  }
+
   const db = getDb();
   const stmt = db.prepare(`
     SELECT fd.*, s.nombre AS servicio_nombre
@@ -855,6 +956,22 @@ export const registrarCompra = (compraData) => {
         costo_unitario_usd: Math.round(item.costo_unitario_usd * 100) / 100
       });
     }
+
+    // Asiento contable (EGRESO)
+    const tasaEntry = db.prepare('SELECT valor_bcv FROM historial_tasas ORDER BY fecha DESC LIMIT 1').get();
+    const tasa = tasaEntry ? tasaEntry.valor_bcv : 36;
+    const totalVes = Math.round(totalUsd * tasa * 100) / 100;
+    
+    db.prepare(`
+      INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, debe_ves, haber_ves, tasa_referencia, descripcion, referencia_id)
+      VALUES ('EGRESO', 'COMPRA_INVENTARIO', 0, ?, 0, ?, ?, ?, ?)
+    `).run(
+      Math.round(totalUsd * 100) / 100,
+      totalVes,
+      tasa,
+      `Compra a ${proveedor || 'Proveedor'}`,
+      compraId
+    );
 
     return { success: true, compraId, message: 'Compra y lote registrados correctamente' };
   });
@@ -1154,6 +1271,23 @@ export const getAllLiquidaciones = () => {
   return stmt.all();
 };
 
+
+export const deleteLiquidacion = (id) => {
+  if (isBrowser) {
+    const liquidaciones = JSON.parse(localStorage.getItem('clinica_liquidaciones_db') || '[]');
+    localStorage.setItem('clinica_liquidaciones_db', JSON.stringify(liquidaciones.filter(l => l.id !== id)));
+    return { success: true };
+  }
+  const db = getDb();
+  const result = db.prepare('DELETE FROM liquidaciones_medicos WHERE id = ?').run(id);
+  return { success: result.changes > 0 };
+};
+
+export const getPendingLiquidationsCount = async () => {
+  const resumen = await getResumenComisionesPorMedico();
+  return resumen.filter(m => m.saldo_pendiente_usd > 0.01).length;
+};
+
 /**
  * Elimina una factura y todos sus registros asociados (detalles y asientos).
  * @param {number} id - ID de la factura a eliminar
@@ -1440,12 +1574,34 @@ export const deleteAsientoManual = (id) => {
     const list = JSON.parse(localStorage.getItem('clinica_asientos_manuales') || '[]');
     const filtered = list.filter(a => a.id !== id);
     localStorage.setItem('clinica_asientos_manuales', JSON.stringify(filtered));
-    return true;
+    return { success: true };
   }
   const db = getDb();
   // Solo permitimos borrar EGRESOS para evitar corrupcion de facturacion
   const result = db.prepare("DELETE FROM contabilidad_asientos WHERE id = ? AND tipo = 'EGRESO'").run(id);
-  return result.changes > 0;
+  return { success: result.changes > 0 };
+};
+
+export const deleteCompra = (id) => {
+  if (isBrowser) {
+    const compras = JSON.parse(localStorage.getItem('clinica_compras') || '[]');
+    const detalles = JSON.parse(localStorage.getItem('clinica_compra_detalles') || '[]');
+    
+    localStorage.setItem('clinica_compras', JSON.stringify(compras.filter(c => c.id !== id)));
+    localStorage.setItem('clinica_compra_detalles', JSON.stringify(detalles.filter(d => d.id_compra !== id)));
+    return { success: true };
+  }
+  const db = getDb();
+  try {
+    db.transaction(() => {
+      db.prepare("DELETE FROM compra_detalles WHERE id_compra = ?").run(id);
+      db.prepare("DELETE FROM compras WHERE id = ?").run(id);
+    })();
+    return { success: true };
+  } catch (err) {
+    console.error("Error al borrar compra:", err);
+    return { success: false, error: err.message };
+  }
 };
 
 /**
