@@ -24,7 +24,7 @@ describe('deleteFactura - Borrado Atómico y Seguridad Contable', () => {
     });
     insertMedico({
       nombre: 'Dr. Test', cedula_rif: 'VDOCTEST', telefono: '456',
-      correo: 'd@d.com', especialidad: 'X', porcentaje_comision: 10
+      correo: 'd@d.com', especialidad: 'X'
     });
     insertServicio({
       nombre: 'Svc Test', precio_usd: 100, es_exento: 1, id_medico_defecto: 1,

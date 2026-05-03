@@ -198,7 +198,8 @@ function App() {
     <div className="layout-container">
       <nav className="sidebar">
         <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem', padding: '0 5px' }}>
-          <img src="/images/1.png" alt="Logo" style={{ width: '100%', height: 'auto', maxHeight: '45px', objectFit: 'contain' }} />
+          <img src="/images/1.png" alt="Imagen y Salud Logo" style={{ width: '100%', height: 'auto', maxHeight: '45px', objectFit: 'contain' }} />
+          <h1 className="sr-only" style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', border: 0 }}>Imagen y Salud</h1>
         </div>
         <ul className="nav-links">
           <li className={activeView === 'patients' ? 'active' : ''} onClick={() => setActiveView('patients')}>Pacientes</li>

@@ -34,8 +34,7 @@ describe('processInvoice - Persistencia ACID', () => {
       cedula_rif: 'V98765432',
       telefono: '04149876543',
       correo: 'house@test.com',
-      especialidad: 'Medicina General',
-      porcentaje_comision: 10
+      especialidad: 'Medicina General'
     });
 
     insertServicio({
@@ -155,8 +154,7 @@ describe('processInvoice - Persistencia ACID', () => {
       cedula_rif: 'V98765432',
       telefono: '04149876543',
       correo: 'house@test.com',
-      especialidad: 'Medicina General',
-      porcentaje_comision: 10
+      especialidad: 'Medicina General'
     });
 
     insertServicio({
@@ -194,7 +192,7 @@ describe('processInvoice - Persistencia ACID', () => {
     });
     const m = insertMedico({
       nombre: 'Dr. Pago', cedula_rif: 'V-DOC-PAY', telefono: '456',
-      correo: 'd@d.com', especialidad: 'X', porcentaje_comision: 10
+      correo: 'd@d.com', especialidad: 'X'
     });
     const s = insertServicio({
       nombre: 'Svc Pago', precio_usd: 100, es_exento: 1, id_medico_defecto: m.lastInsertRowid
@@ -230,7 +228,7 @@ describe('processInvoice - Persistencia ACID', () => {
     
     const m = insertMedico({
       nombre: 'Dr. Default', cedula_rif: 'V-DOC-DEF', telefono: '456',
-      correo: 'e@e.com', especialidad: 'X', porcentaje_comision: 10
+      correo: 'e@e.com', especialidad: 'X'
     });
     
     const invoiceData = {
@@ -260,7 +258,7 @@ describe('processInvoice - Persistencia ACID', () => {
 
     const m = insertMedico({
       nombre: 'Dr. Gasto', cedula_rif: 'V-MED-GASTO', telefono: '04140000000',
-      correo: 'dr.gasto@test.com', especialidad: 'Test', porcentaje_comision: 10
+      correo: 'dr.gasto@test.com', especialidad: 'Test'
     });
 
     insertCategoria('Material Médico');
@@ -337,7 +335,7 @@ describe('processInvoice - Persistencia ACID', () => {
     const asiento = db.prepare("SELECT * FROM contabilidad_asientos WHERE categoria = 'ALQUILER_CONSULTORIO' AND referencia_id = ?").get(result.lastInsertRowid);
     expect(asiento).toBeDefined();
     expect(asiento.tipo).toBe('INGRESO');
-    expect(asiento.haber_usd).toBe(25.0);
+    expect(asiento.debe_usd).toBe(25.0);
     expect(asiento.descripcion).toContain('Consultorio 2');
     expect(asiento.descripcion).toContain('Dr. Externo');
   });

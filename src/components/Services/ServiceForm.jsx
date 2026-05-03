@@ -25,8 +25,12 @@ const ServiceForm = ({ onSave, onCancel, service = null }) => {
   }, []);
 
   const loadData = async () => {
-    const insumos = await serviceLogic.getInsumos();
+    const [insumos, doctors] = await Promise.all([
+      serviceLogic.getInsumos(),
+      doctorService.getDoctors()
+    ]);
     setAvailableInsumos(insumos);
+    setAvailableDoctors(doctors);
   };
 
   const handleChange = (e) => {
@@ -134,6 +138,20 @@ const ServiceForm = ({ onSave, onCancel, service = null }) => {
               min="0"
               max="100"
             />
+          </div>
+
+          <div className="form-group">
+            <label>Médico por Defecto</label>
+            <select 
+              name="id_medico_defecto" 
+              value={formData.id_medico_defecto || ''} 
+              onChange={handleChange}
+            >
+              <option value="">Seleccionar Médico...</option>
+              {availableDoctors.map(doc => (
+                <option key={doc.id} value={doc.id}>{doc.nombre}</option>
+              ))}
+            </select>
           </div>
 
           <div className="form-group full-width" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

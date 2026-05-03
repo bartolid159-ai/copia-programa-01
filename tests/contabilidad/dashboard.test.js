@@ -24,7 +24,7 @@ describe('Dashboard Contable - Flujo de Negocio', () => {
 
   it('debe calcular márgenes correctamente con una factura', () => {
     db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha) VALUES ('INGRESO', 'SERVICIO', 100, 0, '2026-04-29')").run();
-    db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha) VALUES ('EGRESO', 'PAGO_MEDICO', 0, 20, '2026-04-29')").run();
+    db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha) VALUES ('EGRESO', 'COMISION', 0, 20, '2026-04-29')").run();
     db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha) VALUES ('EGRESO', 'GASTO_OPERATIVO', 0, 10, '2026-04-29')").run();
 
     const stats = getDashboardStats({ startDate: '2026-04-29', endDate: '2026-04-29' });
@@ -50,7 +50,7 @@ describe('Dashboard Contable - Flujo de Negocio', () => {
     
     // Asientos vinculados a la factura (Ingreso y Liquidación Médica)
     db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha, referencia_id) VALUES ('INGRESO', 'SERVICIO', 100, 0, '2026-04-29', 1)").run();
-    db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha, referencia_id) VALUES ('EGRESO', 'PAGO_MEDICO', 0, 20, '2026-04-29', 1)").run();
+    db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha, referencia_id) VALUES ('EGRESO', 'COMISION', 0, 20, '2026-04-29', 1)").run();
     
     // Asiento de gasto operativo (FIJO) - sin referencia_id o no vinculado al filtro
     db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha) VALUES ('EGRESO', 'GASTO_OPERATIVO', 0, 10, '2026-04-29')").run();

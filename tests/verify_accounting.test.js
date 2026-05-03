@@ -15,7 +15,7 @@ describe('Verification of Accounting KPIs', () => {
       cedula_rif: 'V-1', nombre: 'Test', sexo: 'M', edad: 20, telefono: '1', correo: 'a@a.com', direccion: 'x'
     });
     const mId = insertMedico({
-      nombre: 'Dr. Test', cedula_rif: 'M-1', telefono: '1', correo: 'm@m.com', especialidad: 'X', porcentaje_comision: 10
+      nombre: 'Dr. Test', cedula_rif: 'M-1', telefono: '1', correo: 'm@m.com', especialidad: 'X'
     }).lastInsertRowid;
     
     const iId = insertInsumo({
