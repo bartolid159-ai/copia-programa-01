@@ -440,6 +440,14 @@ const ExpensesModule = ({ onShowBanner }) => {
             </form>
           )}
         </div>
+      {securityModal.show && (
+        <SecurityModal
+          onClose={() => setSecurityModal({ show: false, expenseId: null })}
+          onSuccess={() => {
+            handleDeleteExpense(securityModal.expenseId);
+            setSecurityModal({ show: false, expenseId: null });
+          }}
+        />
       )}
 
       <SecurityModal 

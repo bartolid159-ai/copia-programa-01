@@ -938,6 +938,10 @@ const LiquidacionPanel = ({ onShowBanner }) => {
           cursor: not-allowed;
         }
         
+        @page {
+          size: letter;
+          margin: 0;
+        }
         @media print {
           @page { size: auto; margin: 0; }
           body * { visibility: hidden; }
@@ -964,6 +968,14 @@ const LiquidacionPanel = ({ onShowBanner }) => {
              padding: 0 !important;
              color: #000 !important;
              background: #fff !important;
+             visibility: visible !important;
+          }
+          .recibo-container-printable * { 
+            color: #000 !important; 
+            visibility: visible !important;
+          }
+          .modal-footer, .btn-close, .modal-header .btn-close { 
+            display: none !important; 
           }
           .recibo-container-printable * { 
             color: #000 !important; 

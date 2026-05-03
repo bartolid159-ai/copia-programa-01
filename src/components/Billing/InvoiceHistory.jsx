@@ -23,6 +23,11 @@ const InvoiceHistory = () => {
   const [invoiceDetails, setInvoiceDetails] = useState([]);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
+  // Estado para Detalle/Impresión
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [invoiceDetails, setInvoiceDetails] = useState([]);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
   const meses = [
     { value: '01', label: 'Enero' }, { value: '02', label: 'Febrero' },
     { value: '03', label: 'Marzo' }, { value: '04', label: 'Abril' },
