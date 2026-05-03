@@ -10,11 +10,18 @@ vi.mock('../../src/logic/reportService', async () => {
     ...actual,
     getDashboardStats: vi.fn().mockResolvedValue({
       kpis: {
-        ingresos_totales: 1000,
-        egresos_totales: 400,
-        ganancia_neta: 600,
-        margen_neto: 60,
-        is_margen_contribucion: false
+        globales: {
+          ingresos_totales: 1000,
+          egresos_totales: 400,
+          ganancia_neta: 600,
+          margen_neto: 60
+        },
+        operativos: {
+          ingresos_totales: 1000,
+          egresos_totales: 200,
+          ganancia_neta: 800,
+          margen_neto: 80
+        }
       },
       trend: []
     }),
@@ -55,7 +62,7 @@ describe('Dashboard Component - New Business Flow', () => {
       await waitFor(() => {
         expect(screen.getByText('Ingresos Totales')).toBeDefined();
         expect(screen.getByText('Egresos Totales')).toBeDefined();
-        expect(screen.getByText('Margen de Ganancia')).toBeDefined();
+        expect(screen.getByText('Margen Neto')).toBeDefined();
       });
     });
   });

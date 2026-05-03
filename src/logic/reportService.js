@@ -103,16 +103,24 @@ export const getTopServicios = (limite = 5) => {
       const doctor = doctors.find(d => Number(d.id) === Number(f.id_medico));
       const comisionPorcentaje = doctor ? (doctor.porcentaje_comision / 100) : 0;
       const items = f.items || [];
+      
+      // Proporción de insumos por item (si hay 2 servicios, cada uno absorbe la mitad del costo_insumos_usd de la factura)
+      const costoInsumosTotal = f.costo_insumos_usd || 0;
+      const insumoPorItem = items.length > 0 ? (costoInsumosTotal / items.length) : 0;
+
       for (const item of items) {
         const nombre = item.nombre || 'Sin nombre';
         const precio = (item.precio_usd || 0) * (item.cantidad || 1);
         const costo_comision    = precio * comisionPorcentaje;
+        
         // Restar gasto extra asociado al servicio
         const srv = servicios.find(s => Number(s.id) === Number(item.id_servicio));
         const costo_gasto_extra = srv ? (Number(srv.gasto_precio_usd) || 0) * (item.cantidad || 1) : 0;
+        
         if (!mapaServicios[nombre]) mapaServicios[nombre] = { nombre, ingresos_usd: 0, ganancia_neta_usd: 0 };
         mapaServicios[nombre].ingresos_usd     += precio;
-        mapaServicios[nombre].ganancia_neta_usd += (precio - costo_comision - costo_gasto_extra);
+        // Ganancia Neta = Ingreso - Comisión - Gasto Extra - Insumos
+        mapaServicios[nombre].ganancia_neta_usd += (precio - costo_comision - costo_gasto_extra - insumoPorItem);
       }
     }
 
@@ -127,7 +135,8 @@ export const getTopServicios = (limite = 5) => {
     SELECT 
       s.nombre,
       SUM(fd.cantidad * fd.precio_unitario_usd) as total_ingreso_usd,
-      SUM(fd.cantidad * fd.precio_unitario_usd * (IFNULL(m.porcentaje_comision, 0) / 100.0)) as total_comision_usd,
+      SUM(fd.cantidad * fd.precio_unitario_usd * (IFNULL(s.porcentaje_comision, 0) / 100.0)) as total_comision_usd,
+      SUM(fd.cantidad * IFNULL(s.gasto_precio_usd, 0)) as total_gasto_extra_usd,
       (
         SELECT SUM(haber_usd) 
         FROM contabilidad_asientos a
@@ -140,14 +149,14 @@ export const getTopServicios = (limite = 5) => {
     JOIN facturas f2 ON fd.id_factura = f2.id
     LEFT JOIN medicos m ON f2.id_medico = m.id
     GROUP BY s.id
-    ORDER BY (total_ingreso_usd - total_comision_usd - IFNULL(total_insumos_usd, 0)) DESC
+    ORDER BY (total_ingreso_usd - total_comision_usd - total_gasto_extra_usd - IFNULL(total_insumos_usd, 0)) DESC
     LIMIT ?
   `;
   const results = db.prepare(query).all(limite);
   return results.map(r => ({
     nombre:           r.nombre,
     ingresos_usd:     round2(r.total_ingreso_usd),
-    ganancia_neta_usd: round2(r.total_ingreso_usd - r.total_comision_usd - (r.total_insumos_usd || 0)),
+    ganancia_neta_usd: round2(r.total_ingreso_usd - r.total_comision_usd - r.total_gasto_extra_usd - (r.total_insumos_usd || 0)),
   }));
 };
 
@@ -321,28 +330,26 @@ export const getDashboardStats = (filters = {}) => {
       mapaFecha[dia].egresos_usd_operativo += egr_factura;
     }
 
-    liquidaciones.forEach(l => {
-      const egr = l.monto_pagado_usd || 0;
-      egresos_usd_totales += egr;
-      egresos_usd_operativos += egr;
-      const dia = l.fecha_pago;
-      if (!mapaFecha[dia]) mapaFecha[dia] = { fecha: dia, ingresos_usd: 0, egresos_usd_global: 0, egresos_usd_operativo: 0 };
-      mapaFecha[dia].egresos_usd_global += egr;
-      mapaFecha[dia].egresos_usd_operativo += egr;
-    });
-
     manuales.forEach(a => {
-      const egr = a.haber_usd || 0;
-      egresos_usd_totales += egr;
-      const isOperativo = ['PAGO_MEDICO', 'COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO'].includes(a.categoria);
-      if (isOperativo) {
-          egresos_usd_operativos += egr;
-      }
       const dia = a.fecha?.split('T')[0];
       if (!mapaFecha[dia]) mapaFecha[dia] = { fecha: dia, ingresos_usd: 0, egresos_usd_global: 0, egresos_usd_operativo: 0 };
-      mapaFecha[dia].egresos_usd_global += egr;
-      if (isOperativo) {
-          mapaFecha[dia].egresos_usd_operativo += egr;
+
+      if (a.tipo === 'INGRESO') {
+        const ing = a.debe_usd || (a.haber_usd || 0); // fallback in case of old corrupted data
+        ingresos_usd += ing;
+        mapaFecha[dia].ingresos_usd += ing;
+      } else {
+        const egr = a.haber_usd || 0;
+        egresos_usd_totales += egr;
+        // Solo sumamos a operativos si es algo que NO viene ya en la factura
+        const isOperativo = ['GASTO_OPERATIVO'].includes(a.categoria);
+        if (isOperativo) {
+            egresos_usd_operativos += egr;
+        }
+        mapaFecha[dia].egresos_usd_global += egr;
+        if (isOperativo) {
+            mapaFecha[dia].egresos_usd_operativo += egr;
+        }
       }
     });
 
@@ -402,11 +409,15 @@ export const getDashboardStats = (filters = {}) => {
     }
   }
 
+  // NOTA CONTABLE (Accrual): PAGO_MEDICO es el pago en caja de una deuda ya devengada
+  // como COMISION al momento de emitir la factura. Incluir ambos en el KPI duplica el
+  // egreso. Solo COMISION, COSTO_INSUMO y GASTO_EXTRA_SERVICIO representan el costo
+  // operativo real de cada servicio. GASTO_OPERATIVO son gastos administrativos fijos.
   const kpiQuery = `
     SELECT 
       SUM(a.debe_usd) as ingresos_usd,
-      SUM(CASE WHEN a.categoria IN ('GASTO_OPERATIVO', 'PAGO_MEDICO', 'COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_totales,
-      SUM(CASE WHEN a.categoria IN ('PAGO_MEDICO', 'COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_operativos
+      SUM(CASE WHEN a.categoria IN ('GASTO_OPERATIVO', 'COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_totales,
+      SUM(CASE WHEN a.categoria IN ('COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_operativos
     FROM contabilidad_asientos a
     ${joinClause}
     WHERE ${whereClauses.join(' AND ')}
@@ -422,8 +433,8 @@ export const getDashboardStats = (filters = {}) => {
     SELECT 
       DATE(a.fecha) as fecha_dia,
       SUM(a.debe_usd) as ingresos_usd,
-      SUM(CASE WHEN a.categoria IN ('GASTO_OPERATIVO', 'PAGO_MEDICO', 'COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_global,
-      SUM(CASE WHEN a.categoria IN ('PAGO_MEDICO', 'COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_operativo
+      SUM(CASE WHEN a.categoria IN ('GASTO_OPERATIVO', 'COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_global,
+      SUM(CASE WHEN a.categoria IN ('COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_operativo
     FROM contabilidad_asientos a
     ${joinClause}
     WHERE ${whereClauses.join(' AND ')}

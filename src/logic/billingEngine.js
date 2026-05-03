@@ -29,12 +29,15 @@ export const calculateTotals = (items, exchangeRate) => {
   for (const item of items) {
     const cantidad = Number(item.cantidad) || 0;
     const precio = Number(item.precio_usd) || 0;
-    const esExento = item.es_exento === true || item.es_exento === 1;
+    
+    // El IVA ahora es 0% por defecto. 
+    // Solo aplica si 'aplica_iva' es true O si 'es_exento' es explícitamente false.
+    const aplicaIva = item.aplica_iva === true || item.aplica_iva === 1 || item.es_exento === false || item.es_exento === 0;
 
     const lineaTotal = round2(cantidad * precio);
     subtotal_usd = round2(subtotal_usd + lineaTotal);
 
-    if (!esExento) {
+    if (aplicaIva) {
       const lineaIva = round2(lineaTotal * IVA_RATE);
       iva_usd = round2(iva_usd + lineaIva);
     }
@@ -53,15 +56,21 @@ export const calculateTotals = (items, exchangeRate) => {
 };
 
 /**
- * Calcula la comisión del médico
- * @param {number} total - Total USD de la factura
- * @param {number} percentage - Porcentaje de comisión (ej: 10 para 10%)
- * @returns {number} Monto de comisión en USD
+ * Calcula la sumatoria de comisiones basada en los servicios
+ * @param {Array} items - Array de {id_servicio, precio_usd, cantidad, porcentaje_comision}
+ * @returns {number} Monto total de comisión en USD
  */
-export const calculateCommission = (total, percentage) => {
-  const totalVal = Number(total) || 0;
-  const percentageVal = Number(percentage) || 0;
-  return round2(totalVal * (percentageVal / 100));
+export const calculateCommission = (items) => {
+  if (!items || !Array.isArray(items)) return 0;
+  
+  const totalCommission = items.reduce((acc, item) => {
+    const precio = Number(item.precio_usd) || 0;
+    const cantidad = Number(item.cantidad) || 0;
+    const porcentaje = Number(item.porcentaje_comision) || 0;
+    return acc + (precio * cantidad * (porcentaje / 100));
+  }, 0);
+
+  return round2(totalCommission);
 };
 
 /**

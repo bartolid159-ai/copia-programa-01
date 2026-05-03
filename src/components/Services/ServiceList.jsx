@@ -34,13 +34,7 @@ const ServiceList = ({ onAddClick, onEditClick }) => {
     setNotification({ message, type });
   };
 
-  const getDoctorName = (service) => {
-    if (service.medico_nombre) return service.medico_nombre;
-    if (!service.id_medico_defecto) return 'No asignado';
-    
-    const doctor = doctors.find(d => Number(d.id) === Number(service.id_medico_defecto));
-    return doctor ? doctor.nombre : `ID: ${service.id_medico_defecto}`;
-  };
+
 
   const handleDeleteClick = (service) => {
     setServiceToDelete(service);
@@ -62,10 +56,7 @@ const ServiceList = ({ onAddClick, onEditClick }) => {
   };
 
   const filteredServices = services.filter(s => {
-    const doctorName = getDoctorName(s).toLowerCase();
-    const nameMatch = s.nombre.toLowerCase().includes(searchTerm.toLowerCase());
-    const doctorMatch = doctorName.includes(searchTerm.toLowerCase());
-    return nameMatch || doctorMatch;
+    return s.nombre.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   return (
@@ -109,7 +100,7 @@ const ServiceList = ({ onAddClick, onEditClick }) => {
               <th>Servicio</th>
               <th>Precio (USD)</th>
               <th>Estatus IVA</th>
-              <th>Médico Defecto</th>
+              <th>Comisión</th>
               <th>Insumos</th>
               <th>Acciones</th>
             </tr>
@@ -136,12 +127,9 @@ const ServiceList = ({ onAddClick, onEditClick }) => {
                   </span>
                 </td>
                 <td>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '0.9rem' }}>{getDoctorName(service)}</span>
-                    {service.id_medico_defecto && !service.medico_nombre && (
-                      <span className="subtitle" style={{ fontSize: '0.7rem', opacity: 0.6 }}>ID: {service.id_medico_defecto}</span>
-                    )}
-                  </div>
+                  <span className="commission-badge" style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24' }}>
+                    {service.porcentaje_comision || 0}%
+                  </span>
                 </td>
                 <td>
                   <div className="tooltip-container">

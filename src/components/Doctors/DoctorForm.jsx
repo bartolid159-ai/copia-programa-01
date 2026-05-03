@@ -7,8 +7,7 @@ const DoctorForm = ({ onSave, onCancel, doctor = null }) => {
     cedula_rif: '',
     telefono: '',
     correo: '',
-    especialidad: '',
-    porcentaje_comision: 0
+    especialidad: ''
   });
 
   const [error, setError] = useState(null);
@@ -17,8 +16,7 @@ const DoctorForm = ({ onSave, onCancel, doctor = null }) => {
     e.preventDefault();
     
     const submissionData = {
-      ...formData,
-      porcentaje_comision: parseInt(formData.porcentaje_comision, 10)
+      ...formData
     };
 
     let result;
@@ -110,20 +108,7 @@ const DoctorForm = ({ onSave, onCancel, doctor = null }) => {
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="porcentaje_comision">Comisión (%) *</label>
-            <input 
-              type="number" 
-              id="porcentaje_comision" 
-              name="porcentaje_comision" 
-              required 
-              min="0"
-              max="100"
-              value={formData.porcentaje_comision} 
-              onChange={handleChange} 
-              placeholder="Ej. 30" 
-            />
-          </div>
+
 
           {error && <div className="form-error animate-fade full-width">{error}</div>}
 

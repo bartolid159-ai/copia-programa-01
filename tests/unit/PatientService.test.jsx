@@ -29,7 +29,7 @@ describe('PatientService Logic', () => {
       cedula_rif: 'V-123',
       nombre: 'Test User',
       sexo: 'M',
-      fecha_nacimiento: '1990-01-01'
+      edad: 30
     };
 
     // Simulate existing patient
@@ -46,7 +46,7 @@ describe('PatientService Logic', () => {
       cedula_rif: 'V-456',
       nombre: 'New User',
       sexo: 'F',
-      fecha_nacimiento: '1995-05-05'
+      edad: 25
     };
 
     dbManager.getPacienteByCedula.mockReturnValue(null);

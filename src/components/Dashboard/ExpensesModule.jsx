@@ -26,7 +26,7 @@ const ExpensesModule = ({ onShowBanner }) => {
     items: [] 
   });
 
-  const [securityModal, setSecurityModal] = useState({ show: false, expenseId: null });
+  const [securityModal, setSecurityModal] = useState({ show: false, expenseId: null, error: '' });
   
   // Gasto único o Lote en proceso
   const [batchExpenses, setBatchExpenses] = useState([{
@@ -161,16 +161,31 @@ const ExpensesModule = ({ onShowBanner }) => {
   };
 
   const confirmDeleteExpense = (id) => {
-    setSecurityModal({ show: true, expenseId: id });
+    setSecurityModal({ show: true, expenseId: id, error: '' });
   };
 
-  const handleDeleteExpense = async (id) => {
-    const result = await deleteAsientoManual(id);
-    if (result.success) {
-      onShowBanner('Gasto eliminado exitosamente', 'success');
-      loadHistory();
-    } else {
-      onShowBanner('Error al eliminar gasto', 'error');
+  const handleDeleteExpense = async (password) => {
+    try {
+      const { login } = await import('../../auth');
+      const authResult = await login('admin', password);
+      
+      if (!authResult.success) {
+        setSecurityModal(prev => ({ ...prev, error: 'Clave incorrecta. Acceso denegado.' }));
+        return;
+      }
+
+      const id = securityModal.expenseId;
+      const result = await deleteAsientoManual(id);
+      if (result.success) {
+        onShowBanner('Gasto eliminado exitosamente', 'success');
+        setSecurityModal({ show: false, expenseId: null, error: '' });
+        loadHistory();
+      } else {
+        onShowBanner('Error al eliminar gasto', 'error');
+      }
+    } catch (err) {
+      console.error('Error al eliminar gasto:', err);
+      setSecurityModal(prev => ({ ...prev, error: 'Error al procesar el borrado.' }));
     }
   };
 
@@ -252,7 +267,7 @@ const ExpensesModule = ({ onShowBanner }) => {
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <button type="button" className="btn-delete" onClick={() => handleRemoveBatchRow(row.id)} title="Eliminar fila">
-                        <span style={{ fontSize: '1.2rem' }}>×</span>
+                        🗑️
                       </button>
                     </td>
                   </tr>
@@ -288,7 +303,7 @@ const ExpensesModule = ({ onShowBanner }) => {
               <tbody>
                 {historial.length === 0 && (
                   <tr>
-                    <td colSpan="4" style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)', fontSize: '1.1rem' }}>
+                    <td colSpan="5" style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)', fontSize: '1.1rem' }}>
                       <div style={{ opacity: 0.3, fontSize: '3rem', marginBottom: '1rem' }}>💸</div>
                       No hay gastos registrados en el sistema.
                     </td>
@@ -425,15 +440,16 @@ const ExpensesModule = ({ onShowBanner }) => {
             </form>
           )}
         </div>
-      {securityModal.show && (
-        <SecurityModal
-          onClose={() => setSecurityModal({ show: false, expenseId: null })}
-          onSuccess={() => {
-            handleDeleteExpense(securityModal.expenseId);
-            setSecurityModal({ show: false, expenseId: null });
-          }}
-        />
       )}
+
+      <SecurityModal 
+        isOpen={securityModal.show}
+        title="Confirmar Borrado de Gasto"
+        message="¿Está seguro que desea eliminar este registro de gasto? Esta acción afectará el balance de caja."
+        error={securityModal.error}
+        onConfirm={handleDeleteExpense}
+        onCancel={() => setSecurityModal({ show: false, expenseId: null, error: '' })}
+      />
 
       {showCategoryModal && (
         <div className="modal-overlay">

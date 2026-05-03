@@ -44,22 +44,28 @@ describe('billingEngine', () => {
       const result = calculateTotals(items, 'invalid');
       expect(result.total_usd).toBe(0);
     });
+
+    it('debe aplicar 0% IVA por defecto si no se especifica es_exento ni aplica_iva', () => {
+      const items = [{ id_servicio: 1, nombre: 'Consulta', cantidad: 1, precio_usd: 100 }];
+      const result = calculateTotals(items, 36);
+      expect(result.iva_usd).toBe(0);
+      expect(result.total_usd).toBe(100);
+    });
   });
 
   describe('calculateCommission', () => {
-    it('debe calcular comisión al 10%', () => {
-      const commission = calculateCommission(100, 10);
-      expect(commission).toBe(10);
+    it('debe calcular comisión sumando items', () => {
+      const items = [
+        { precio_usd: 100, cantidad: 1, porcentaje_comision: 10 },
+        { precio_usd: 50, cantidad: 2, porcentaje_comision: 20 }
+      ];
+      const commission = calculateCommission(items);
+      expect(commission).toBe(30); // (100*1*0.1) + (50*2*0.2) = 10 + 20 = 30
     });
 
-    it('debe calcular comisión al 15%', () => {
-      const commission = calculateCommission(58, 15);
-      expect(commission).toBe(8.7);
-    });
-
-    it('debe retornar 0 para valores inválidos', () => {
-      expect(calculateCommission(null, 10)).toBe(0);
-      expect(calculateCommission(100, null)).toBe(0);
+    it('debe retornar 0 para items vacíos o sin comisión', () => {
+      expect(calculateCommission([])).toBe(0);
+      expect(calculateCommission([{ precio_usd: 100, cantidad: 1 }])).toBe(0);
     });
   });
 

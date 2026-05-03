@@ -107,6 +107,14 @@ function initializeDb(dbPath, loadSchema) {
         try {
           const schemaSql = fs.readFileSync(schemaPath, 'utf8');
           dbInstance.exec(schemaSql);
+
+          // Migración: Añadir porcentaje_comision a servicios si no existe
+          try {
+            dbInstance.prepare("ALTER TABLE servicios ADD COLUMN porcentaje_comision REAL DEFAULT 0.0").run();
+            console.log("Migración: Columna 'porcentaje_comision' añadida a 'servicios'");
+          } catch (e) {
+            // Ignorar si la columna ya existe
+          }
         } catch (err) {
           console.error("Error cargando el esquema SQL:", err);
         }
@@ -205,8 +213,8 @@ export const getAllPatients = () => {
 export const insertMedico = (data) => {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO medicos (nombre, cedula_rif, telefono, correo, especialidad, porcentaje_comision, activo)
-    VALUES (@nombre, @cedula_rif, @telefono, @correo, @especialidad, @porcentaje_comision, 1)
+    INSERT INTO medicos (nombre, cedula_rif, telefono, correo, especialidad, activo)
+    VALUES (@nombre, @cedula_rif, @telefono, @correo, @especialidad, 1)
   `);
   return stmt.run(data);
 };
@@ -219,8 +227,7 @@ export const updateMedico = (data) => {
         cedula_rif = @cedula_rif, 
         telefono = @telefono, 
         correo = @correo, 
-        especialidad = @especialidad, 
-        porcentaje_comision = @porcentaje_comision
+        especialidad = @especialidad
     WHERE id = @id
   `);
   return stmt.run(data);
@@ -382,11 +389,12 @@ export const getAllCategorias = () => {
 export const insertServicio = (data) => {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO servicios (nombre, precio_usd, es_exento, id_medico_defecto, gasto_precio_usd, gasto_descripcion)
-    VALUES (@nombre, @precio_usd, @es_exento, @id_medico_defecto, @gasto_precio_usd, @gasto_descripcion)
+    INSERT INTO servicios (nombre, precio_usd, es_exento, porcentaje_comision, gasto_precio_usd, gasto_descripcion)
+    VALUES (@nombre, @precio_usd, @es_exento, @porcentaje_comision, @gasto_precio_usd, @gasto_descripcion)
   `);
   return stmt.run({
     ...data,
+    porcentaje_comision: data.porcentaje_comision || 0,
     gasto_precio_usd: data.gasto_precio_usd || 0,
     gasto_descripcion: data.gasto_descripcion || null
   });
@@ -399,13 +407,14 @@ export const updateServicio = (data) => {
     SET nombre = @nombre, 
         precio_usd = @precio_usd, 
         es_exento = @es_exento, 
-        id_medico_defecto = @id_medico_defecto,
+        porcentaje_comision = @porcentaje_comision,
         gasto_precio_usd = @gasto_precio_usd,
         gasto_descripcion = @gasto_descripcion
     WHERE id = @id
   `);
   return stmt.run({
     ...data,
+    porcentaje_comision: data.porcentaje_comision || 0,
     gasto_precio_usd: data.gasto_precio_usd || 0,
     gasto_descripcion: data.gasto_descripcion || null
   });
@@ -422,9 +431,8 @@ export const deleteServicio = (id) => {
 export const getAllServicios = () => {
   const db = getDb();
   const stmt = db.prepare(`
-    SELECT s.*, m.nombre AS medico_nombre
+    SELECT s.*
     FROM servicios s
-    LEFT JOIN medicos m ON s.id_medico_defecto = m.id
     ORDER BY s.nombre ASC
     LIMIT 100
   `);
@@ -434,9 +442,8 @@ export const getAllServicios = () => {
 export const getServicioById = (id) => {
   const db = getDb();
   const stmt = db.prepare(`
-    SELECT s.*, m.nombre AS medico_nombre
+    SELECT s.*
     FROM servicios s
-    LEFT JOIN medicos m ON s.id_medico_defecto = m.id
     WHERE s.id = ?
   `);
   return stmt.get(id);
@@ -583,7 +590,7 @@ export const processInvoice = (invoiceData) => {
       insertDetalle.run({
         id_factura: facturaId, id_servicio: item.id_servicio,
         cantidad: item.cantidad, precio_unitario_usd: round2(item.precio_usd),
-        iva_porcentaje: item.es_exento ? 0 : 16
+        iva_porcentaje: (item.aplica_iva === true || item.es_exento === false) ? 16 : 0
       });
     }
 
@@ -703,6 +710,10 @@ export const getFacturaById = (id) => {
     
     return {
       ...invoice,
+      total_usd: invoice.total_usd || invoice.totals?.total_usd || 0,
+      total_ves: invoice.total_ves || invoice.totals?.total_ves || 0,
+      subtotal_usd: invoice.subtotal_usd || invoice.totals?.subtotal_usd || 0,
+      iva_usd: invoice.iva_usd || invoice.totals?.iva_usd || 0,
       paciente_nombre: patient ? patient.nombre : '—',
       medico_nombre: doctor ? doctor.nombre : '—'
     };
@@ -758,10 +769,20 @@ export const getHistorialFacturas = (filters = {}) => {
     if (startDate) invoices = invoices.filter(inv => inv.fecha >= startDate);
     if (endDate) invoices = invoices.filter(inv => inv.fecha <= endDate);
 
-    // Mapear nombres de pacientes
+    // Mapear datos adicionales (pacientes, médicos y totales)
+    const doctors = JSON.parse(localStorage.getItem(DOCTORS_KEY) || '[]');
     invoices = invoices.map(inv => {
       const p = patients.find(p => p.id === inv.id_paciente);
-      return { ...inv, paciente_nombre: p ? p.nombre : 'Paciente Desconocido' };
+      const d = doctors.find(doc => doc.id === inv.id_medico);
+      return { 
+        ...inv, 
+        paciente_nombre: p ? p.nombre : '—',
+        paciente_cedula: p ? p.cedula_rif : '—',
+        paciente_telefono: p ? p.telefono : '—',
+        medico_nombre: d ? d.nombre : '—',
+        total_usd: inv.total_usd || inv.totals?.total_usd || 0,
+        total_ves: inv.total_ves || inv.totals?.total_ves || 0
+      };
     });
 
     // Filtro por búsqueda (searchQuery)
@@ -769,8 +790,8 @@ export const getHistorialFacturas = (filters = {}) => {
       const q = searchQuery.toLowerCase();
       invoices = invoices.filter(inv => 
         inv.paciente_nombre.toLowerCase().includes(q) || 
-        (inv.paciente_cedula && inv.paciente_cedula.toLowerCase().includes(q)) ||
-        (inv.paciente_telefono && inv.paciente_telefono.toLowerCase().includes(q))
+        (inv.paciente_cedula && String(inv.paciente_cedula).toLowerCase().includes(q)) ||
+        (inv.paciente_telefono && String(inv.paciente_telefono).toLowerCase().includes(q))
       );
     }
 
@@ -779,9 +800,12 @@ export const getHistorialFacturas = (filters = {}) => {
 
   const db = getDb();
   let query = `
-    SELECT f.*, p.nombre as paciente_nombre, p.cedula_rif as paciente_cedula, p.telefono as paciente_telefono
+    SELECT f.*, 
+           p.nombre as paciente_nombre, p.cedula_rif as paciente_cedula, p.telefono as paciente_telefono,
+           m.nombre as medico_nombre
     FROM facturas f
-    JOIN pacientes p ON f.id_paciente = p.id
+    LEFT JOIN pacientes p ON f.id_paciente = p.id
+    LEFT JOIN medicos m ON f.id_medico = m.id
     WHERE 1=1
   `;
   const params = [];
@@ -790,9 +814,9 @@ export const getHistorialFacturas = (filters = {}) => {
   if (endDate)   { query += " AND DATE(f.fecha) <= ?"; params.push(endDate);   }
   
   if (searchQuery) {
-    query += " AND (p.nombre LIKE ? OR p.cedula_rif LIKE ? OR p.telefono LIKE ?)";
+    query += " AND (p.nombre LIKE ? OR p.cedula_rif LIKE ? OR p.telefono LIKE ? OR f.id LIKE ?)";
     const q = `%${searchQuery}%`;
-    params.push(q, q, q);
+    params.push(q, q, q, q);
   }
 
   query += " ORDER BY f.fecha DESC";
@@ -814,8 +838,10 @@ export const getAllFacturas = () => {
         paciente_cedula: patient ? patient.cedula_rif : '—',
         paciente_telefono: patient ? patient.telefono : '—',
         medico_nombre: doctor ? doctor.nombre : '—',
-        total_usd: inv.totals?.total_usd || 0,
-        total_ves: inv.totals?.total_ves || 0,
+        total_usd: inv.totals?.total_usd || inv.total_usd || 0,
+        total_ves: inv.totals?.total_ves || inv.total_ves || 0,
+        subtotal_usd: inv.totals?.subtotal_usd || inv.subtotal_usd || 0,
+        iva_usd: inv.totals?.iva_usd || inv.iva_usd || 0,
         metodo_pago: inv.metodo_pago || 'EFECTIVO_USD',
         detalle_pago: inv.detalle_pago || ''
       };
@@ -1624,7 +1650,8 @@ export const insertAlquilerConsultorio = (data) => {
       fecha: data.fecha,
       tipo: 'INGRESO',
       categoria: 'ALQUILER_CONSULTORIO',
-      haber_usd: data.precio_usd,
+      debe_usd: data.precio_usd,
+      haber_usd: 0,
       descripcion: `Alquiler ${data.consultorio} - ${data.nombre_arrendatario} (${data.turno})`,
       referencia_id: newAlquiler.id
     });
@@ -1650,8 +1677,8 @@ export const insertAlquilerConsultorio = (data) => {
     const alquilerId = result.lastInsertRowid;
 
     const stmtAsiento = db.prepare(`
-      INSERT INTO contabilidad_asientos (fecha, tipo, categoria, haber_usd, descripcion, referencia_id)
-      VALUES (?, 'INGRESO', 'ALQUILER_CONSULTORIO', ?, ?, ?)
+      INSERT INTO contabilidad_asientos (fecha, tipo, categoria, debe_usd, haber_usd, descripcion, referencia_id)
+      VALUES (?, 'INGRESO', 'ALQUILER_CONSULTORIO', ?, 0, ?, ?)
     `);
     stmtAsiento.run(
       data.fecha + 'T12:00:00',

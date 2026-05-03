@@ -84,8 +84,8 @@ describe('Gestión de Gastos y Egresos', () => {
     let historial = getHistorialEgresos();
     const targetId = historial[0].id;
     
-    const success = deleteAsientoManual(targetId);
-    expect(success).toBe(true);
+    const result = deleteAsientoManual(targetId);
+    expect(result.success).toBe(true);
 
     historial = getHistorialEgresos();
     expect(historial.find(a => a.id === targetId)).toBeUndefined();
@@ -108,8 +108,8 @@ describe('Gestión de Gastos y Egresos', () => {
     const db = getDb();
     const target = db.prepare("SELECT id FROM contabilidad_asientos WHERE tipo = 'INGRESO'").get();
     
-    const success = deleteAsientoManual(target.id);
-    expect(success).toBe(false);
+    const result = deleteAsientoManual(target.id);
+    expect(result.success).toBe(false);
 
     const exists = db.prepare("SELECT 1 FROM contabilidad_asientos WHERE id = ?").get(target.id);
     expect(exists).toBeDefined();

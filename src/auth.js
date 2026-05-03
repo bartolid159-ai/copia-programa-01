@@ -14,8 +14,9 @@ if (!isBrowser) {
 
 export async function login(username, password) {
   if (isBrowser) {
-    // Modo Navegador (Desarrollo): Soporte para clave 'admin' por defecto
-    if (username === 'admin' && (password === 'admin' || password === '1234')) {
+    // Modo Navegador (Desarrollo): Soporte para clave dinámica en localStorage
+    const savedPassword = localStorage.getItem('clinica_admin_password') || 'admin';
+    if (username === 'admin' && (password === savedPassword || password === '1234')) {
       return { success: true, user: { id: 1, username: 'admin' } };
     }
     return { success: false, message: 'Credenciales inválidas en modo navegador.' };

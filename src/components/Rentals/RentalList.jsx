@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react';
 import * as alquilerService from '../../logic/alquilerService';
 import RentalForm from './RentalForm';
+import SecurityModal from '../Common/SecurityModal';
+import { login } from '../../auth';
 
 const RentalList = ({ onShowBanner }) => {
   const [rentals, setRentals] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  // Seguridad y Borrado
+  const [securityModal, setSecurityModal] = useState({ isOpen: false, rentalId: null, error: '' });
 
   useEffect(() => {
     loadRentals();
@@ -24,13 +29,28 @@ const RentalList = ({ onShowBanner }) => {
     loadRentals();
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('¿Está seguro de eliminar este registro de alquiler? Se revertirá también el asiento contable.')) {
-      const result = await alquilerService.eliminarAlquiler(id);
+  const handleDelete = (id) => {
+    setSecurityModal({ isOpen: true, rentalId: id, error: '' });
+  };
+
+  const handleConfirmDelete = async (password) => {
+    try {
+      const authResult = await login('admin', password);
+      
+      if (!authResult.success) {
+        setSecurityModal(prev => ({ ...prev, error: 'Clave incorrecta. Acceso denegado.' }));
+        return;
+      }
+
+      const result = await alquilerService.eliminarAlquiler(securityModal.rentalId);
       if (result.success) {
+        setSecurityModal({ isOpen: false, rentalId: null, error: '' });
         onShowBanner(result.message);
         loadRentals();
       }
+    } catch (err) {
+      console.error('Error al eliminar alquiler:', err);
+      setSecurityModal(prev => ({ ...prev, error: 'Error del sistema al procesar el borrado.' }));
     }
   };
 
@@ -46,48 +66,63 @@ const RentalList = ({ onShowBanner }) => {
         </button>
       </div>
 
-      <div className="container-card">
+      <div className="table-wrapper glassmorphism">
         {loading ? (
-          <p>Cargando registros...</p>
+          <div style={{ textAlign: 'center', padding: '40px' }}>
+            <p className="subtitle">Cargando registros...</p>
+          </div>
         ) : rentals.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px' }}>
             <p className="subtitle">No hay registros de alquileres.</p>
           </div>
         ) : (
-          <div className="table-responsive">
-            <table className="patients-table">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Consultorio</th>
-                  <th>Turno</th>
-                  <th>Arrendatario</th>
-                  <th>Precio (USD)</th>
-                  <th>Método</th>
-                  <th>Acciones</th>
+          <table className="modern-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Consultorio</th>
+                <th>Turno</th>
+                <th>Arrendatario</th>
+                <th>Monto (USD)</th>
+                <th>Método de Pago</th>
+                <th style={{ textAlign: 'center' }}>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rentals.map(r => (
+                <tr key={r.id} className="animate-fade">
+                  <td>{new Date(r.fecha).toLocaleDateString()}</td>
+                  <td>
+                    <span className="status-badge" style={{ background: 'rgba(6, 182, 212, 0.1)', color: 'var(--accent-cyan)' }}>
+                      {r.consultorio}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`status-badge ${r.turno === 'MAÑANA' ? 'active' : r.turno === 'TARDE' ? 'pending' : 'info'}`}>
+                      {r.turno}
+                    </span>
+                  </td>
+                  <td style={{ fontWeight: '600' }}>{r.nombre_arrendatario}</td>
+                  <td style={{ color: 'var(--accent-cyan)', fontWeight: 'bold', fontSize: '1rem' }}>
+                    ${Number(r.precio_usd).toFixed(2)}
+                  </td>
+                  <td>
+                    <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>{r.metodo_pago}</span>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <button 
+                      className="btn-delete" 
+                      onClick={() => handleDelete(r.id)} 
+                      title="Eliminar Alquiler"
+                      style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '8px' }}
+                    >
+                      🗑️
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {rentals.map(r => (
-                  <tr key={r.id} className="animate-fade">
-                    <td>{new Date(r.fecha).toLocaleDateString()}</td>
-                    <td><span className="badge-status info">{r.consultorio}</span></td>
-                    <td>{r.turno}</td>
-                    <td style={{ fontWeight: '600' }}>{r.nombre_arrendatario}</td>
-                    <td style={{ color: 'var(--accent-cyan)', fontWeight: 'bold' }}>
-                      ${Number(r.precio_usd).toFixed(2)}
-                    </td>
-                    <td>{r.metodo_pago}</td>
-                    <td>
-                      <button className="btn-delete" onClick={() => handleDelete(r.id)} title="Eliminar">
-                        🗑️
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
 
@@ -97,6 +132,15 @@ const RentalList = ({ onShowBanner }) => {
           onCancel={() => setShowForm(false)} 
         />
       )}
+
+      <SecurityModal 
+        isOpen={securityModal.isOpen}
+        title="Confirmar Borrado de Alquiler"
+        message="¿Está seguro que desea eliminar este registro de alquiler? Esta acción revertirá también el asiento contable asociado en el Dashboard."
+        error={securityModal.error}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setSecurityModal({ isOpen: false, rentalId: null, error: '' })}
+      />
     </div>
   );
 };

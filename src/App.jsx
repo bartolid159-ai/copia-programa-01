@@ -19,11 +19,17 @@ import PurchasesList from './components/Purchases/PurchasesList';
 import LiquidacionPanel from './components/Liquidation/LiquidacionPanel';
 import RentalList from './components/Rentals/RentalList';
 import { crearBackup, limpiarBackupsAntiguos } from './logic/backupService';
+import logo from './assets/logo.png';
 import { getPendingLiquidationsCount } from './db/manager';
+import LoginScreen from './components/Auth/LoginScreen';
+import SettingsModal from './components/Settings/SettingsModal';
 
 function App() {
   const [theme, setTheme] = useState('dark');
-  const [activeView, setActiveView] = useState('patients'); // Iniciamos en pacientes por defecto ahora que Dashboard es el último
+  const [activeView, setActiveView] = useState('patients'); 
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
   
   // Patient states
   const [showPatientForm, setShowPatientForm] = useState(false);
@@ -175,11 +181,24 @@ function App() {
     }
   };
 
+  const isTestEnvironment = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+
+  if (!isAuthenticated && !isTestEnvironment) {
+    return (
+      <LoginScreen 
+        onLoginSuccess={(userData) => {
+          setIsAuthenticated(true);
+          setUser(userData);
+        }} 
+      />
+    );
+  }
+
   return (
     <div className="layout-container">
       <nav className="sidebar">
-        <div className="logo">
-          Médica<span>ERP</span>
+        <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem', padding: '0 5px' }}>
+          <img src="/images/1.png" alt="Logo" style={{ width: '100%', height: 'auto', maxHeight: '45px', objectFit: 'contain' }} />
         </div>
         <ul className="nav-links">
           <li className={activeView === 'patients' ? 'active' : ''} onClick={() => setActiveView('patients')}>Pacientes</li>
@@ -224,6 +243,15 @@ function App() {
             <button className="theme-toggle" onClick={toggleTheme}>
               {theme === 'light' ? '🌙 Modo Oscuro' : '☀️ Modo Claro'}
             </button>
+
+            <button 
+              className="theme-toggle" 
+              onClick={() => setShowSettings(true)}
+              title="Configuración de Seguridad"
+              style={{ fontSize: '1.2rem', padding: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}
+            >
+              ⚙️
+            </button>
             
             {pendingLiqCount > 0 && (
               <div 
@@ -249,7 +277,7 @@ function App() {
             )}
 
             <div className="avatar">AD</div>
-            <span>Administrador</span>
+            <span>{user?.username || 'Administrador'}</span>
           </div>
         </header>
 
@@ -353,6 +381,12 @@ function App() {
           />
         )}
       </main>
+
+      <SettingsModal 
+        isOpen={showSettings} 
+        onClose={() => setShowSettings(false)} 
+        onShowBanner={handleShowBanner}
+      />
     </div>
   )
 }

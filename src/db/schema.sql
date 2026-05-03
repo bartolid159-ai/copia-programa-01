@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS pacientes (
   cedula_rif TEXT UNIQUE,
   nombre TEXT,
   sexo TEXT,
-  fecha_nacimiento DATE,
+  edad INTEGER,
   telefono TEXT,
   correo TEXT,
   direccion TEXT,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS medicos (
   telefono TEXT,
   correo TEXT,
   especialidad TEXT,
-  porcentaje_comision REAL,
+  -- porcentaje_comision REAL, -- Obsoleto: las comisiones ahora se manejan por servicio
   activo BOOLEAN DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -58,10 +58,10 @@ CREATE TABLE IF NOT EXISTS servicios (
   nombre TEXT,
   precio_usd REAL,
   es_exento BOOLEAN DEFAULT 1,
-  id_medico_defecto INTEGER,
+  porcentaje_comision REAL DEFAULT 0.0,
+  -- id_medico_defecto INTEGER, -- Obsoleto: se selecciona el médico en facturación
   gasto_descripcion TEXT,
-  gasto_precio_usd REAL DEFAULT 0.0,
-  FOREIGN KEY(id_medico_defecto) REFERENCES medicos(id)
+  gasto_precio_usd REAL DEFAULT 0.0
 );
 
 -- Intersección Servicios <-> Insumos (Receta autom.)

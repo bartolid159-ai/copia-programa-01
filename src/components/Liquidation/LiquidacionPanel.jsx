@@ -541,9 +541,23 @@ const LiquidacionPanel = ({ onShowBanner }) => {
           <div className="modal-content recibo-modal glassmorphism" style={{ maxWidth: '450px', background: 'var(--bg-panel)', padding: '30px' }}>
             <div className="recibo-container-printable">
               <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+                <div style={{ 
+                  background: 'white', 
+                  padding: '12px', 
+                  borderRadius: '12px', 
+                  display: 'inline-block', 
+                  marginBottom: '15px',
+                  boxShadow: '0 4px 15px rgba(0,0,0,0.08)'
+                }}>
+                  <img 
+                    src="/images/1.png" 
+                    alt="Logo Imagen & Salud" 
+                    style={{ maxHeight: '60px', display: 'block' }} 
+                  />
+                </div>
                 <h1 style={{ fontSize: '1.4rem', color: 'var(--accent-cyan)', margin: 0, letterSpacing: '2px' }}>RECIBO DE PAGO</h1>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '5px' }}>MédicaERP · Gestión Contable</p>
-                <div style={{ marginTop: '15px', fontWeight: '800', fontSize: '1.1rem' }}>COMPROBANTE #{String(ultimoPago.id).padStart(5, '0')}</div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '5px' }}>Imagen & Salud · Gestión Médica</p>
+                <div style={{ marginTop: '15px', fontWeight: '800', fontSize: '1.1rem', color: 'var(--text-main)' }}>COMPROBANTE #{String(ultimoPago.id).padStart(5, '0')}</div>
               </div>
 
               <div className="recibo-body" style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>
@@ -924,64 +938,39 @@ const LiquidacionPanel = ({ onShowBanner }) => {
           cursor: not-allowed;
         }
         
-        @page {
-          size: letter;
-          margin: 0;
-        }
         @media print {
-          body { 
-            background: #fff !important; 
+          @page { size: auto; margin: 0; }
+          body * { visibility: hidden; }
+          .recibo-modal, .recibo-modal * { visibility: visible; }
+          .recibo-modal {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 2cm;
+            background: #fff !important;
             color: #000 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            -webkit-print-color-adjust: exact;
-          }
-          /* Ocultar todo excepto el recibo */
-          body > *:not(.modal-overlay) {
-            display: none !important;
-          }
-          .modal-overlay {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            background: #fff !important;
-            display: flex !important;
-            justify-content: center !important;
-            align-items: flex-start !important;
-            backdrop-filter: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-          .modal-content.recibo-modal {
-            position: relative !important;
-            width: 100% !important;
-            max-width: none !important;
-            height: auto !important;
-            min-height: 100% !important;
-            background: #fff !important;
-            border: none !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
             display: block !important;
+            box-shadow: none !important;
+            border: none !important;
+            overflow: visible !important;
           }
           .recibo-container-printable {
              width: 100% !important;
-             max-width: 800px !important;
+             max-width: none !important;
              margin: 0 auto !important;
-             padding: 40px 60px !important;
+             padding: 0 !important;
              color: #000 !important;
              background: #fff !important;
-             visibility: visible !important;
           }
           .recibo-container-printable * { 
             color: #000 !important; 
-            visibility: visible !important;
+            border-color: #eee !important;
           }
-          .modal-footer, .btn-close, .modal-header .btn-close { 
-            display: none !important; 
+          .modal-footer, .btn-primary, .btn-secondary, .no-print {
+            display: none !important;
           }
         }
       `}</style>

@@ -28,8 +28,8 @@ const getBrowserDoctors = () => {
     const data = localStorage.getItem(STORAGE_KEY);
     if (!data) {
         const initial = [
-            { id: 1, nombre: 'Dr. Gregory House', cedula_rif: 'V-12345', telefono: '0412-5551234', correo: 'house@princeton.com', especialidad: 'Diagnóstico', porcentaje_comision: 30, activo: 1 },
-            { id: 2, nombre: 'Dra. Allison Cameron', cedula_rif: 'V-67890', telefono: '0424-5556789', correo: 'cameron@princeton.com', especialidad: 'Inmunología', porcentaje_comision: 25, activo: 1 }
+            { id: 1, nombre: 'Dr. Gregory House', cedula_rif: 'V-12345', telefono: '0412-5551234', correo: 'house@princeton.com', especialidad: 'Diagnóstico', activo: 1 },
+            { id: 2, nombre: 'Dra. Allison Cameron', cedula_rif: 'V-67890', telefono: '0424-5556789', correo: 'cameron@princeton.com', especialidad: 'Inmunología', activo: 1 }
         ];
         localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
         return initial;
@@ -49,7 +49,7 @@ const saveBrowserDoctors = (doctors) => {
  */
 const registerDoctor = async (doctorData) => {
   try {
-    const requiredFields = ['nombre', 'especialidad', 'porcentaje_comision'];
+    const requiredFields = ['nombre', 'especialidad'];
     for (const field of requiredFields) {
       if (doctorData[field] === undefined || doctorData[field] === '') {
         return { success: false, message: `El campo ${field} es obligatorio.` };
@@ -61,8 +61,7 @@ const registerDoctor = async (doctorData) => {
       const newDoctor = { 
         ...doctorData, 
         id: Date.now(), 
-        activo: 1,
-        porcentaje_comision: Number(doctorData.porcentaje_comision) 
+        activo: 1
       };
       doctors.push(newDoctor);
       saveBrowserDoctors(doctors);

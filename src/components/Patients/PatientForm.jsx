@@ -6,7 +6,7 @@ const PatientForm = ({ onSave, onCancel, patient = null }) => {
     cedula_rif: '',
     nombre: '',
     sexo: 'F',
-    fecha_nacimiento: '',
+    edad: '',
     telefono: '',
     correo: '',
     direccion: ''
@@ -16,7 +16,12 @@ const PatientForm = ({ onSave, onCancel, patient = null }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const result = await patientService.registerPatient(formData);
+    
+    // Si el formulario tiene ID, es una edición
+    const result = formData.id 
+      ? await patientService.updatePatient(formData)
+      : await patientService.registerPatient(formData);
+
     if (result.success) {
       onSave(result.message);
     } else {
@@ -48,8 +53,8 @@ const PatientForm = ({ onSave, onCancel, patient = null }) => {
           </div>
 
           <div className="form-group">
-            <label htmlFor="fecha_nacimiento">Fecha de Nacimiento *</label>
-            <input type="date" id="fecha_nacimiento" name="fecha_nacimiento" required value={formData.fecha_nacimiento} onChange={handleChange} />
+            <label htmlFor="edad">Edad *</label>
+            <input type="number" id="edad" name="edad" required value={formData.edad} onChange={handleChange} placeholder="Ej. 25" min="0" max="150" />
           </div>
 
           <div className="form-group">

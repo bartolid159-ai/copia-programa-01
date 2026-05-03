@@ -60,6 +60,48 @@ const IncomeByDoctorChart = ({ startDate = null, endDate = null }) => {
           })}
         </div>
       )}
+      
+      <style>{`
+        .chart-row {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .label-container {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.9rem;
+          font-weight: 500;
+          color: var(--text-main);
+        }
+        .row-value {
+          font-weight: 700;
+        }
+        .bar-track {
+          width: 100%;
+          height: 12px;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 6px;
+          overflow: hidden;
+          position: relative;
+        }
+        .bar-fill {
+          height: 100%;
+          border-radius: 6px;
+          position: relative;
+          transition: width 1s ease-out;
+        }
+        .bar-glow {
+          position: absolute;
+          top: 0; right: 0; bottom: 0; left: 0;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+          animation: shimmer 2s infinite linear;
+        }
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
     </div>
   );
 };

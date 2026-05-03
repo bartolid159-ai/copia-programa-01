@@ -20,7 +20,10 @@ vi.mock('../../logic/billingEngine', () => ({
     total_usd: 0,
     total_ves: 0
   })),
-  calculateCommission: vi.fn((total, pct) => total * (pct / 100)),
+  calculateCommission: vi.fn((items) => {
+    if (!items) return 0;
+    return items.reduce((sum, i) => sum + (i.precio_usd * i.cantidad * (i.porcentaje_comision / 100)), 0);
+  }),
   getRequiredInsumos: vi.fn(() => [])
 }));
 
@@ -32,12 +35,13 @@ describe('InvoiceForm', () => {
     { id: 1, nombre: 'Dr. House', especialidad: 'Medicina General', porcentaje_comision: 10 }
   ];
   const mockServices = [
-    { id: 1, nombre: 'Consulta General', precio_usd: 30, es_exento: true, id_medico_defecto: 1 },
-    { id: 2, nombre: 'Electrocardiograma', precio_usd: 50, es_exento: false, id_medico_defecto: 1 }
+    { id: 1, nombre: 'Consulta General', precio_usd: 30, es_exento: true, porcentaje_comision: 10 },
+    { id: 2, nombre: 'Electrocardiograma', precio_usd: 50, es_exento: false, porcentaje_comision: 20 }
   ];
 
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
     patientService.searchPatients.mockResolvedValue(mockPatients);
     doctorService.getDoctors.mockResolvedValue(mockDoctors);
     serviceLogic.getServices.mockResolvedValue(mockServices);
@@ -67,13 +71,18 @@ describe('InvoiceForm', () => {
     });
   });
 
-  it('debe mostrar errores cuando no hay paciente seleccionado', async () => {
+  it('debe mostrar errores cuando no hay paciente o médico seleccionado', async () => {
     render(<InvoiceForm />);
 
-    const serviceSelect = screen.getByDisplayValue(/Seleccione un servicio.../i);
-    await act(async () => {
-      fireEvent.change(serviceSelect, { target: { value: '1' } });
+    const serviceSearch = await screen.findByPlaceholderText(/Escriba el nombre del servicio/i);
+    
+    await waitFor(() => {
+      fireEvent.change(serviceSearch, { target: { value: 'Consulta' } });
+      expect(screen.queryByText('Consulta General')).toBeInTheDocument();
     });
+    
+    const suggestion = screen.getByText('Consulta General');
+    fireEvent.click(suggestion);
 
     const processBtn = screen.getByText(/procesar factura/i);
     await act(async () => {
@@ -88,10 +97,15 @@ describe('InvoiceForm', () => {
   it('debe permitir agregar servicios a la factura', async () => {
     render(<InvoiceForm />);
 
-    const select = await screen.findByDisplayValue(/Seleccione un servicio.../i);
-    await act(async () => {
-      fireEvent.change(select, { target: { value: '1' } });
+    const serviceSearch = await screen.findByPlaceholderText(/Escriba el nombre del servicio/i);
+    
+    await waitFor(() => {
+      fireEvent.change(serviceSearch, { target: { value: 'Consulta' } });
+      expect(screen.queryByText('Consulta General')).toBeInTheDocument();
     });
+
+    const suggestion = screen.getByText('Consulta General');
+    fireEvent.click(suggestion);
 
     await waitFor(() => {
       expect(screen.getByText('Consulta General')).toBeDefined();
@@ -125,9 +139,9 @@ describe('InvoiceForm', () => {
         cantidad: 1,
         precio_usd: 30,
         es_exento: true,
-        id_medico_defecto: 1
+        porcentaje_comision: 10
       }],
-      derivedDoctor: mockDoctor,
+      selectedDoctor: mockDoctor,
       metodoPago: 'PAGO_MOVIL',
       detallePago: ''
     }));
