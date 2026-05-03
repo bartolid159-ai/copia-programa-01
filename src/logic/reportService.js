@@ -100,8 +100,6 @@ export const getTopServicios = (limite = 5) => {
     const mapaServicios = {};
 
     for (const f of facturas) {
-      const doctor = doctors.find(d => Number(d.id) === Number(f.id_medico));
-      const comisionPorcentaje = doctor ? (doctor.porcentaje_comision / 100) : 0;
       const items = f.items || [];
       
       // Proporción de insumos por item (si hay 2 servicios, cada uno absorbe la mitad del costo_insumos_usd de la factura)
@@ -111,10 +109,13 @@ export const getTopServicios = (limite = 5) => {
       for (const item of items) {
         const nombre = item.nombre || 'Sin nombre';
         const precio = (item.precio_usd || 0) * (item.cantidad || 1);
+        
+        // Buscar el servicio para obtener su comisión y gasto extra
+        const srv = servicios.find(s => Number(s.id) === Number(item.id_servicio));
+        const comisionPorcentaje = srv ? (Number(srv.porcentaje_comision) / 100) : 0;
         const costo_comision    = precio * comisionPorcentaje;
         
         // Restar gasto extra asociado al servicio
-        const srv = servicios.find(s => Number(s.id) === Number(item.id_servicio));
         const costo_gasto_extra = srv ? (Number(srv.gasto_precio_usd) || 0) * (item.cantidad || 1) : 0;
         
         if (!mapaServicios[nombre]) mapaServicios[nombre] = { nombre, ingresos_usd: 0, ganancia_neta_usd: 0 };
