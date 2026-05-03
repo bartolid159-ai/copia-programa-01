@@ -23,6 +23,8 @@ const RentalList = ({ onShowBanner }) => {
     setLoading(false);
   };
 
+  const totalIngresos = rentals.reduce((acc, curr) => acc + (Number(curr.precio_usd) || 0), 0);
+
   const handleSave = (message) => {
     onShowBanner(message);
     setShowForm(false);
@@ -64,6 +66,18 @@ const RentalList = ({ onShowBanner }) => {
         <button className="btn-primary" onClick={() => setShowForm(true)}>
           ➕ Registrar Alquiler
         </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+        <div className="kpi-card glassmorphism animate-fade-in" style={{ padding: '15px 20px', borderLeft: '4px solid var(--accent-cyan)' }}>
+          <span style={{ fontSize: '0.85rem', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '1px' }}>Ingresos Totales (Historial)</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '5px' }}>
+            <h3 style={{ margin: 0, fontSize: '1.8rem', color: 'var(--accent-cyan)', textShadow: '0 0 15px rgba(6, 182, 212, 0.4)' }}>
+              ${totalIngresos.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </h3>
+            <span style={{ fontSize: '0.9rem', opacity: 0.6 }}>USD</span>
+          </div>
+        </div>
       </div>
 
       <div className="table-wrapper glassmorphism">
