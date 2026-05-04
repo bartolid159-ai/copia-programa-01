@@ -549,7 +549,7 @@ export const processInvoice = (invoiceData) => {
     const newInvoice = {
       ...invoiceData,
       id: facturaId,
-      fecha: new Date().toISOString(),
+      fecha: invoiceData.fecha_factura ? new Date(invoiceData.fecha_factura + 'T00:00:00').toISOString() : new Date().toISOString(),
       estatus: 'PAGADA',
       metodo_pago: invoiceData.metodo_pago || 'EFECTIVO_USD',
       detalle_pago: invoiceData.detalle_pago || '',
@@ -569,16 +569,21 @@ export const processInvoice = (invoiceData) => {
     const { id_paciente, id_medico, tasa_cambio, items, totals, commission, requiredInsumos } = invoiceData;
     const round2 = (num) => Math.round(num * 100) / 100;
 
+    // Fecha de factura (usar la fecha suministrada o hoy por defecto)
+    const fechaFactura = invoiceData.fecha_factura || new Date().toISOString().split('T')[0];
+
     // 1. Factura
+    const fechaCompleta = new Date(fechaFactura + 'T' + new Date().toTimeString().split(' ')[0]).toISOString();
     const facturaId = db.prepare(`
-      INSERT INTO facturas (id_paciente, id_medico, tasa_cambio, total_usd, total_ves, estatus, metodo_pago, detalle_pago)
-      VALUES (@id_paciente, @id_medico, @tasa_cambio, @total_usd, @total_ves, 'PAGADA', @metodo_pago, @detalle_pago)
+      INSERT INTO facturas (id_paciente, id_medico, tasa_cambio, total_usd, total_ves, estatus, metodo_pago, detalle_pago, fecha)
+      VALUES (@id_paciente, @id_medico, @tasa_cambio, @total_usd, @total_ves, 'PAGADA', @metodo_pago, @detalle_pago, @fecha)
     `).run({
       id_paciente, id_medico, tasa_cambio,
       total_usd: round2(totals.total_usd),
       total_ves: round2(totals.total_ves),
       metodo_pago: invoiceData.metodo_pago || 'EFECTIVO_USD',
-      detalle_pago: invoiceData.detalle_pago || ''
+      detalle_pago: invoiceData.detalle_pago || '',
+      fecha: fechaCompleta
     }).lastInsertRowid;
 
     // 2. Detalles
@@ -596,8 +601,8 @@ export const processInvoice = (invoiceData) => {
 
     // 4. Asientos Bimoneda
     const insertAsiento = db.prepare(`
-      INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, debe_ves, haber_ves, tasa_referencia, descripcion, referencia_id)
-      VALUES (@tipo, @categoria, @debe_usd, @haber_usd, @debe_ves, @haber_ves, @tasa_referencia, @descripcion, @referencia_id)
+      INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, debe_ves, haber_ves, tasa_referencia, descripcion, referencia_id, fecha)
+      VALUES (@tipo, @categoria, @debe_usd, @haber_usd, @debe_ves, @haber_ves, @tasa_referencia, @descripcion, @referencia_id, @fecha)
     `);
 
     // INGRESO por servicios
@@ -610,7 +615,8 @@ export const processInvoice = (invoiceData) => {
       haber_ves: 0,
       tasa_referencia: tasa_cambio,
       descripcion: `Factura #${facturaId} - Ingreso por servicios`,
-      referencia_id: facturaId
+      referencia_id: facturaId,
+      fecha: fechaCompleta
     });
 
     if (commission > 0) {
@@ -623,7 +629,8 @@ export const processInvoice = (invoiceData) => {
         haber_ves: round2(commission * tasa_cambio),
         tasa_referencia: tasa_cambio,
         descripcion: `Factura #${facturaId} - Comisión médica`,
-        referencia_id: facturaId
+        referencia_id: facturaId,
+        fecha: fechaCompleta
       });
     }
 
@@ -667,7 +674,8 @@ export const processInvoice = (invoiceData) => {
             haber_ves: round2(costoUsd * tasa_cambio),
             tasa_referencia: tasa_cambio,
             descripcion: `Factura #${facturaId} - Costo insumo ID ${req.id_insumo} (FIFO)`,
-            referencia_id: facturaId
+            referencia_id: facturaId,
+            fecha: fechaCompleta
           });
         }
       }
@@ -687,7 +695,8 @@ export const processInvoice = (invoiceData) => {
           haber_ves: round2(totalGasto * tasa_cambio),
           tasa_referencia: tasa_cambio,
           descripcion: `Factura #${facturaId} - ${srv.gasto_descripcion || 'Gasto extra de servicio'}`,
-          referencia_id: facturaId
+          referencia_id: facturaId,
+          fecha: fechaCompleta
         });
       }
     }
