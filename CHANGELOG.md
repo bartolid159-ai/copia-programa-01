@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.4.0](https://github.com/bartolid159-ai/copia-programa-01/compare/v2.3.1...v2.4.0) (2026-05-04)
+
+
+### Features
+
+* agregar KPI de ingresos totales al módulo de consultorios ([05a1c37](https://github.com/bartolid159-ai/copia-programa-01/commit/05a1c37d81a6767999ce9a27e56e918cb99ed26d))
+* **contabilidad:** implementar logica de devengo en Dashboard y costos operativos en facturacion browser ([ca73d56](https://github.com/bartolid159-ai/copia-programa-01/commit/ca73d567f3f2945950d00e03e4627884f79399ed))
+
+
+### Bug Fixes
+
+* ajustar KPI de Top 5 Servicios para descontar gastos extras ([741c773](https://github.com/bartolid159-ai/copia-programa-01/commit/741c773beb49c18eb7b9b03bd6b0d97e76bff85f))
+* corregir cálculo de comisiones en modo browser para el KPI Top 5 ([5321c60](https://github.com/bartolid159-ai/copia-programa-01/commit/5321c604bd132d2769d0019cf9eb28f480c91ed9))
+* resolve syntax errors, duplicate declarations and sync tests with accrual accounting model ([7801fb6](https://github.com/bartolid159-ai/copia-programa-01/commit/7801fb65625070f0c4e72b96e609a64861872de1))
+
 ## [2.3.1](https://github.com/bartolid159-ai/copia-programa-01/compare/v2.3.0...v2.3.1) (2026-04-30)
 
 
