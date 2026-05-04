@@ -23,7 +23,7 @@ describe('processInvoice - Persistencia ACID', () => {
       cedula_rif: 'V12345678',
       nombre: 'Juan Pérez',
       sexo: 'M',
-      fecha_nacimiento: '1990-01-01',
+      edad: 30,
       telefono: '04121234567',
       correo: 'juan@test.com',
       direccion: 'Caracas'
@@ -34,8 +34,7 @@ describe('processInvoice - Persistencia ACID', () => {
       cedula_rif: 'V98765432',
       telefono: '04149876543',
       correo: 'house@test.com',
-      especialidad: 'Medicina General',
-      porcentaje_comision: 10
+      especialidad: 'Medicina General'
     });
 
     insertServicio({
@@ -129,9 +128,11 @@ describe('processInvoice - Persistencia ACID', () => {
     const db = getDb();
     const asientos = db.prepare('SELECT * FROM contabilidad_asientos ORDER BY id').all();
     
-    expect(asientos.length).toBe(1);
+    expect(asientos.length).toBe(2); // Ingreso + Comisión Médica
     expect(asientos[0].tipo).toBe('INGRESO');
     expect(asientos[0].debe_usd).toBe(30);
+    expect(asientos[1].tipo).toBe('EGRESO');
+    expect(asientos[1].categoria).toBe('COMISION');
   });
 
   it('debe calcular IVA para servicios no exentos', async () => {
@@ -142,7 +143,7 @@ describe('processInvoice - Persistencia ACID', () => {
       cedula_rif: 'V12345678',
       nombre: 'Juan Pérez',
       sexo: 'M',
-      fecha_nacimiento: '1990-01-01',
+      edad: 30,
       telefono: '04121234567',
       correo: 'juan@test.com',
       direccion: 'Caracas'
@@ -153,8 +154,7 @@ describe('processInvoice - Persistencia ACID', () => {
       cedula_rif: 'V98765432',
       telefono: '04149876543',
       correo: 'house@test.com',
-      especialidad: 'Medicina General',
-      porcentaje_comision: 10
+      especialidad: 'Medicina General'
     });
 
     insertServicio({
@@ -188,11 +188,11 @@ describe('processInvoice - Persistencia ACID', () => {
     // Insertar datos necesarios para FK
     const p = insertPaciente({
       cedula_rif: 'V-PAY-TEST', nombre: 'Test Pago', sexo: 'M',
-      fecha_nacimiento: '1990-01-01', telefono: '123', correo: 'a@a.com', direccion: 'x'
+      edad: 30, telefono: '123', correo: 'a@a.com', direccion: 'x'
     });
     const m = insertMedico({
       nombre: 'Dr. Pago', cedula_rif: 'V-DOC-PAY', telefono: '456',
-      correo: 'd@d.com', especialidad: 'X', porcentaje_comision: 10
+      correo: 'd@d.com', especialidad: 'X'
     });
     const s = insertServicio({
       nombre: 'Svc Pago', precio_usd: 100, es_exento: 1, id_medico_defecto: m.lastInsertRowid
@@ -223,12 +223,12 @@ describe('processInvoice - Persistencia ACID', () => {
   it('debe usar EFECTIVO_USD por defecto si no se especifica el método', () => {
     const p = insertPaciente({
       cedula_rif: 'V-DEF-TEST', nombre: 'Test Default', sexo: 'M',
-      fecha_nacimiento: '1990-01-01', telefono: '123', correo: 'b@b.com', direccion: 'x'
+      edad: 30, telefono: '123', correo: 'b@b.com', direccion: 'x'
     });
     
     const m = insertMedico({
       nombre: 'Dr. Default', cedula_rif: 'V-DOC-DEF', telefono: '456',
-      correo: 'e@e.com', especialidad: 'X', porcentaje_comision: 10
+      correo: 'e@e.com', especialidad: 'X'
     });
     
     const invoiceData = {
@@ -252,13 +252,13 @@ describe('processInvoice - Persistencia ACID', () => {
   it('debe registrar gasto extra de servicio y reflejarlo en contabilidad', async () => {
     const p = insertPaciente({
       cedula_rif: 'V-GASTO-01', nombre: 'Paciente Gasto', sexo: 'M',
-      fecha_nacimiento: '1990-01-01', telefono: '04120000000',
+      edad: 30, telefono: '04120000000',
       correo: 'gasto@test.com', direccion: 'Caracas'
     });
 
     const m = insertMedico({
       nombre: 'Dr. Gasto', cedula_rif: 'V-MED-GASTO', telefono: '04140000000',
-      correo: 'dr.gasto@test.com', especialidad: 'Test', porcentaje_comision: 10
+      correo: 'dr.gasto@test.com', especialidad: 'Test'
     });
 
     insertCategoria('Material Médico');
@@ -290,8 +290,8 @@ describe('processInvoice - Persistencia ACID', () => {
     const db = getDb();
     const asientos = db.prepare('SELECT * FROM contabilidad_asientos ORDER BY id').all();
 
-    // 1 Ingreso, 1 Egreso Insumo, 1 Egreso Gasto Extra
-    expect(asientos.length).toBe(3);
+    // 1 Ingreso, 1 Egreso Insumo, 1 Egreso Gasto Extra, 1 Comisión
+    expect(asientos.length).toBe(4);
 
     const ingreso = asientos.find(a => a.tipo === 'INGRESO');
     expect(ingreso.debe_usd).toBe(20);
@@ -299,15 +299,15 @@ describe('processInvoice - Persistencia ACID', () => {
     const egresoInsumo = asientos.find(a => a.categoria === 'COSTO_INSUMO');
     expect(egresoInsumo.haber_usd).toBe(1);
 
-    const egresoGasto = asientos.find(a => a.categoria === 'GASTO_OPERATIVO');
+    const egresoGasto = asientos.find(a => a.categoria === 'GASTO_EXTRA_SERVICIO');
     expect(egresoGasto).toBeDefined();
     expect(egresoGasto.haber_usd).toBe(5);
 
     const totalIngresos = asientos.filter(a => a.tipo === 'INGRESO').reduce((sum, a) => sum + a.debe_usd, 0);
     const totalEgresos = asientos.filter(a => a.tipo === 'EGRESO').reduce((sum, a) => sum + a.haber_usd, 0);
     expect(totalIngresos).toBe(20);
-    expect(totalEgresos).toBe(6);
-    expect(totalIngresos - totalEgresos).toBe(14);
+    expect(totalEgresos).toBe(8); // 1 (insumo) + 5 (gasto) + 2 (comision)
+    expect(totalIngresos - totalEgresos).toBe(12);
     });
 
   it('debe registrar un alquiler de consultorio y generar el asiento contable de ingreso', () => {
@@ -335,7 +335,7 @@ describe('processInvoice - Persistencia ACID', () => {
     const asiento = db.prepare("SELECT * FROM contabilidad_asientos WHERE categoria = 'ALQUILER_CONSULTORIO' AND referencia_id = ?").get(result.lastInsertRowid);
     expect(asiento).toBeDefined();
     expect(asiento.tipo).toBe('INGRESO');
-    expect(asiento.haber_usd).toBe(25.0);
+    expect(asiento.debe_usd).toBe(25.0);
     expect(asiento.descripcion).toContain('Consultorio 2');
     expect(asiento.descripcion).toContain('Dr. Externo');
   });

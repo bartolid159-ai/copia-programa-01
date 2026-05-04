@@ -20,11 +20,11 @@ describe('deleteFactura - Borrado Atómico y Seguridad Contable', () => {
     // Setup basic data
     insertPaciente({
       cedula_rif: 'VTEST', nombre: 'Test Paciente', sexo: 'M',
-      fecha_nacimiento: '1990-01-01', telefono: '123', correo: 'a@a.com', direccion: 'x'
+      edad: 30, telefono: '123', correo: 'a@a.com', direccion: 'x'
     });
     insertMedico({
       nombre: 'Dr. Test', cedula_rif: 'VDOCTEST', telefono: '456',
-      correo: 'd@d.com', especialidad: 'X', porcentaje_comision: 10
+      correo: 'd@d.com', especialidad: 'X'
     });
     insertServicio({
       nombre: 'Svc Test', precio_usd: 100, es_exento: 1, id_medico_defecto: 1,
@@ -60,7 +60,7 @@ describe('deleteFactura - Borrado Atómico y Seguridad Contable', () => {
     
     expect(facturasPrev.count).toBe(1);
     expect(detallesPrev.count).toBe(1);
-    expect(asientosPrev.count).toBe(1); // Solo Ingreso (Comisión se registra al liquidar)
+    expect(asientosPrev.count).toBe(2); // Ingreso y Comisión Médica PENDIENTE
 
     // Ejecutamos el borrado
     const result = deleteFactura(facturaId);

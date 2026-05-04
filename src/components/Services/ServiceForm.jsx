@@ -7,7 +7,7 @@ const ServiceForm = ({ onSave, onCancel, service = null }) => {
     nombre: '',
     precio_usd: '',
     es_exento: true,
-    id_medico_defecto: '',
+    porcentaje_comision: 0,
     gasto_descripcion: '',
     gasto_precio_usd: ''
   });
@@ -25,10 +25,12 @@ const ServiceForm = ({ onSave, onCancel, service = null }) => {
   }, []);
 
   const loadData = async () => {
-    const doctors = await doctorService.getDoctors();
-    const insumos = await serviceLogic.getInsumos();
-    setAvailableDoctors(doctors);
+    const [insumos, doctors] = await Promise.all([
+      serviceLogic.getInsumos(),
+      doctorService.getDoctors()
+    ]);
     setAvailableInsumos(insumos);
+    setAvailableDoctors(doctors);
   };
 
   const handleChange = (e) => {
@@ -73,7 +75,7 @@ const ServiceForm = ({ onSave, onCancel, service = null }) => {
     const payload = {
       ...formData,
       precio_usd: Number(formData.precio_usd),
-      id_medico_defecto: formData.id_medico_defecto ? Number(formData.id_medico_defecto) : null,
+      porcentaje_comision: Number(formData.porcentaje_comision),
       gasto_precio_usd: formData.gasto_precio_usd ? Number(formData.gasto_precio_usd) : 0,
       insumos: insumosList
     };
@@ -126,9 +128,26 @@ const ServiceForm = ({ onSave, onCancel, service = null }) => {
           </div>
 
           <div className="form-group">
-            <label>Médico por defecto</label>
-            <select name="id_medico_defecto" value={formData.id_medico_defecto} onChange={handleChange}>
-              <option value="">Seleccione un médico...</option>
+            <label>Porcentaje de Comisión (%)</label>
+            <input 
+              type="number" 
+              name="porcentaje_comision" 
+              value={formData.porcentaje_comision} 
+              onChange={handleChange} 
+              placeholder="0"
+              min="0"
+              max="100"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Médico por Defecto</label>
+            <select 
+              name="id_medico_defecto" 
+              value={formData.id_medico_defecto || ''} 
+              onChange={handleChange}
+            >
+              <option value="">Seleccionar Médico...</option>
               {availableDoctors.map(doc => (
                 <option key={doc.id} value={doc.id}>{doc.nombre}</option>
               ))}

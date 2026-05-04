@@ -100,7 +100,7 @@ describe('App Component - Tarea 01', () => {
 
   it('debe renderizar el título de la aplicación y permitir navegar a Contabilidad', async () => {
     render(<App />);
-    expect(screen.getByText(/Médica/i)).toBeInTheDocument();
+    expect(screen.getByText(/imagen y salud/i)).toBeInTheDocument();
     
     // Al inicio debe cargar Pacientes (nuevo comportamiento)
     expect(screen.getByText(/Gestión de Pacientes/i)).toBeInTheDocument();

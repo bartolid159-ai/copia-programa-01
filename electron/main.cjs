@@ -32,6 +32,50 @@ function createWindow() {
     mainWindow.show();
   });
 
+  // Backup on close
+  mainWindow.on('close', async (e) => {
+    const { dialog } = require('electron');
+    
+    // Prevent default close to show dialog
+    e.preventDefault();
+
+    const result = await dialog.showMessageBox(mainWindow, {
+      type: 'question',
+      buttons: ['Sí, respaldar', 'No, salir', 'Cancelar'],
+      defaultId: 0,
+      title: 'Confirmar salida',
+      message: '¿Desea crear una copia de seguridad de la base de datos antes de salir?',
+      detail: 'Se guardará una copia exacta de todos sus datos contables.'
+    });
+
+    if (result.response === 0) {
+      // Sí, respaldar
+      const userDataPath = app.getPath('userData');
+      const dbPath = path.join(userDataPath, 'data.sqlite');
+      const date = new Date().toISOString().split('T')[0];
+      
+      const saveResult = await dialog.showSaveDialog(mainWindow, {
+        title: 'Guardar Respaldo',
+        defaultPath: path.join(app.getPath('desktop'), `Respaldo_Clinica_${date}.sqlite`),
+        filters: [{ name: 'SQLite Database', extensions: ['sqlite'] }]
+      });
+
+      if (!saveResult.canceled && saveResult.filePath) {
+        try {
+          fs.copyFileSync(dbPath, saveResult.filePath);
+          app.exit(0);
+        } catch (err) {
+          await dialog.showErrorBox('Error al respaldar', 'No se pudo guardar el archivo: ' + err.message);
+          app.exit(0);
+        }
+      }
+    } else if (result.response === 1) {
+      // No, salir sin respaldar
+      app.exit(0);
+    }
+    // Si es 2 (Cancelar), no hacemos nada y la ventana se queda abierta
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });

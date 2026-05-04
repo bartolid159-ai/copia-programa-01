@@ -36,9 +36,10 @@ const InvoiceForm = ({ onProcessComplete }) => {
   const exchangeRate = parseFloat(exchangeRateStr) || 0;
 
   const [invoiceItems, setInvoiceItems] = useState(draft.current?.invoiceItems || []);
-  // Doctor se deriva de los servicios, no se selecciona manualmente.
-  // Si hay múltiples servicios con distintos médicos, se toma el del primer servicio.
-  const [derivedDoctor, setDerivedDoctor] = useState(draft.current?.derivedDoctor || null);
+  const [selectedDoctor, setSelectedDoctor] = useState(draft.current?.selectedDoctor || null);
+  
+  const [serviceSearch, setServiceSearch] = useState('');
+  const [serviceSuggestions, setServiceSuggestions] = useState([]);
 
   const [metodoPago, setMetodoPago] = useState(draft.current?.metodoPago || 'EFECTIVO_USD');
   const [detallePago, setDetallePago] = useState(draft.current?.detallePago || '');
@@ -50,8 +51,8 @@ const InvoiceForm = ({ onProcessComplete }) => {
 
   // Guardar borrador cada vez que cambia algo relevante
   useEffect(() => {
-    saveDraft({ patientSearch, selectedPatient, exchangeRateStr, invoiceItems, derivedDoctor, metodoPago, detallePago });
-  }, [patientSearch, selectedPatient, exchangeRateStr, invoiceItems, derivedDoctor, metodoPago, detallePago]);
+    saveDraft({ patientSearch, selectedPatient, exchangeRateStr, invoiceItems, selectedDoctor, metodoPago, detallePago });
+  }, [patientSearch, selectedPatient, exchangeRateStr, invoiceItems, selectedDoctor, metodoPago, detallePago]);
 
   useEffect(() => {
     loadInitialData();
@@ -96,13 +97,23 @@ const InvoiceForm = ({ onProcessComplete }) => {
     setPatientSuggestions([]);
   };
 
+  const handleServiceSearch = useCallback((query) => {
+    setServiceSearch(query);
+    if (query.length < 1) { setServiceSuggestions([]); return; }
+    const filtered = services.filter(s => 
+      s.nombre.toLowerCase().includes(query.toLowerCase())
+    );
+    setServiceSuggestions(filtered.slice(0, 5));
+  }, [services]);
+
+  const selectService = (svc) => {
+    addServiceToInvoice(svc);
+    setServiceSearch('');
+    setServiceSuggestions([]);
+  };
+
   const addServiceToInvoice = (svc) => {
     if (!svc) return;
-    // Auto-derivar médico del primer servicio agregado
-    if (invoiceItems.length === 0 && svc.id_medico_defecto) {
-      const doc = doctors.find(d => Number(d.id) === Number(svc.id_medico_defecto));
-      if (doc) setDerivedDoctor(doc);
-    }
 
     const existing = invoiceItems.find(item => item.id_servicio === svc.id);
     if (existing) {
@@ -112,11 +123,11 @@ const InvoiceForm = ({ onProcessComplete }) => {
     } else {
       setInvoiceItems([...invoiceItems, {
         id_servicio: svc.id,
-        id_medico_defecto: svc.id_medico_defecto,
         nombre: svc.nombre,
         cantidad: 1,
         precio_usd: svc.precio_usd,
-        es_exento: svc.es_exento
+        es_exento: svc.es_exento,
+        porcentaje_comision: svc.porcentaje_comision || 0
       }]);
     }
   };
@@ -133,14 +144,14 @@ const InvoiceForm = ({ onProcessComplete }) => {
   const removeItem = (id_servicio) => {
     const remaining = invoiceItems.filter(item => item.id_servicio !== id_servicio);
     setInvoiceItems(remaining);
-    if (remaining.length === 0) setDerivedDoctor(null);
   };
 
   const totals = billingEngine.calculateTotals(invoiceItems, exchangeRate);
-  const commission = billingEngine.calculateCommission(totals.total_usd, derivedDoctor?.porcentaje_comision || 0);
+  const commission = billingEngine.calculateCommission(invoiceItems);
 
   const handleProcessInvoice = async () => {
     if (!selectedPatient) { setValidationError('Por favor seleccione un paciente para continuar.'); return; }
+    if (!selectedDoctor) { setValidationError('Por favor seleccione un médico para continuar.'); return; }
     if (invoiceItems.length === 0) { setValidationError('Debe agregar al menos un servicio a la factura.'); return; }
     if (!exchangeRate || isNaN(exchangeRate) || exchangeRate <= 0) { setValidationError('Ingrese una tasa de cambio válida mayor a cero.'); return; }
     if ((metodoPago === 'TRANSFERENCIA' || metodoPago === 'PAGO_MOVIL') && (!detallePago || detallePago.length !== 4)) {
@@ -166,11 +177,9 @@ const InvoiceForm = ({ onProcessComplete }) => {
     setIsProcessing(true);
     try {
       const requiredInsumos = billingEngine.getRequiredInsumos(invoiceItems, serviciosInsumos);
-      // El médico se toma del primer servicio o del derivado
-      const medicoId = derivedDoctor?.id || invoiceItems[0]?.id_medico_defecto || null;
       const invoiceData = {
         id_paciente: selectedPatient.id,
-        id_medico: medicoId ? Number(medicoId) : null,
+        id_medico: selectedDoctor.id,
         tasa_cambio: exchangeRate,
         items: invoiceItems,
         totals,
@@ -188,7 +197,7 @@ const InvoiceForm = ({ onProcessComplete }) => {
       setSelectedPatient(null);
       setPatientSearch('');
       setInvoiceItems([]);
-      setDerivedDoctor(null);
+      setSelectedDoctor(null);
       setMetodoPago('EFECTIVO_USD');
       setDetallePago('');
     } catch (error) {
@@ -258,37 +267,49 @@ const InvoiceForm = ({ onProcessComplete }) => {
           </div>
         </div>
 
-        {/* Médico auto-derivado */}
-        {derivedDoctor && (
-          <div className="doctor-pill">
-            <span className="dp-icon">👨‍⚕️</span>
-            <div>
-              <div className="dp-name">{derivedDoctor.nombre}</div>
-              <div className="dp-meta">{derivedDoctor.especialidad} · {derivedDoctor.porcentaje_comision}% comisión</div>
-            </div>
-          </div>
-        )}
-
-        {/* Agregar servicio */}
-        <div className="inv-field" style={{ marginTop: '14px' }}>
-          <label>Agregar Servicios</label>
-          <select
+        {/* Selección de Médico */}
+        <div className="inv-field">
+          <label>Médico Tratante <span className="req">*</span></label>
+          <select 
             className="inv-input inv-select"
+            value={selectedDoctor?.id || ''}
             onChange={(e) => {
-              const svc = services.find(s => s.id === Number(e.target.value));
-              addServiceToInvoice(svc);
-              e.target.value = '';
+              const doc = doctors.find(d => d.id === Number(e.target.value));
+              setSelectedDoctor(doc);
             }}
-            defaultValue=""
           >
-            <option value="" disabled>Seleccione un servicio...</option>
-            {services.map(s => (
-              <option key={s.id} value={s.id}>
-                {s.nombre} — ${Number(s.precio_usd).toFixed(2)} {s.es_exento ? '(Exento)' : '(IVA 16%)'}
-              </option>
+            <option value="" disabled>Seleccione un médico...</option>
+            {doctors.map(d => (
+              <option key={d.id} value={d.id}>{d.nombre} ({d.especialidad})</option>
             ))}
           </select>
         </div>
+
+        {/* Agregar servicio con buscador */}
+        <div className="inv-field" style={{ marginTop: '14px' }}>
+          <label>Buscar Servicios</label>
+          <div style={{ position: 'relative' }}>
+            <input
+              type="text"
+              className="inv-input"
+              placeholder="Escriba el nombre del servicio..."
+              value={serviceSearch}
+              onChange={(e) => handleServiceSearch(e.target.value)}
+              autoComplete="off"
+            />
+            {serviceSuggestions.length > 0 && (
+              <ul className="inv-suggestions">
+                {serviceSuggestions.map(s => (
+                  <li key={s.id} onClick={() => selectService(s)}>
+                    <strong>{s.nombre}</strong>
+                    <span>${Number(s.precio_usd).toFixed(2)} · {s.es_exento ? 'Exento' : 'IVA 16%'}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
 
         {/* Tabla de items */}
         {invoiceItems.length > 0 && (
@@ -307,7 +328,9 @@ const InvoiceForm = ({ onProcessComplete }) => {
               <tbody>
                 {invoiceItems.map(item => {
                   const sub = item.cantidad * item.precio_usd;
-                  const iva = item.es_exento ? 0 : sub * 0.16;
+                  // Nuevo: IVA 0% por defecto. Solo si es_exento es explícitamente false
+                  const aplicaIva = item.aplica_iva === true || item.es_exento === false;
+                  const iva = aplicaIva ? sub * 0.16 : 0;
                   return (
                     <tr key={item.id_servicio}>
                       <td className="td-name">{item.nombre}</td>
@@ -321,9 +344,9 @@ const InvoiceForm = ({ onProcessComplete }) => {
                       </td>
                       <td>${(sub + iva).toFixed(2)}</td>
                       <td>
-                        {item.es_exento
-                          ? <span className="badge-exento">Exento</span>
-                          : <span className="badge-iva">${iva.toFixed(2)}</span>}
+                        {aplicaIva
+                          ? <span className="badge-iva">${iva.toFixed(2)}</span>
+                          : <span className="badge-exento">Exento / 0%</span>}
                       </td>
                       <td>
                         <button type="button" className="btn-delete" onClick={() => removeItem(item.id_servicio)} title="Quitar">🗑️</button>
@@ -344,10 +367,13 @@ const InvoiceForm = ({ onProcessComplete }) => {
         <div className="inv-summary glassmorphism">
           <h3 className="invoice-section-title">💰 Resumen</h3>
           <div className="summary-row"><span>Subtotal USD</span><span>${totals.subtotal_usd?.toFixed(2) || '0.00'}</span></div>
-          <div className="summary-row"><span>IVA (16%)</span><span>${totals.iva_usd?.toFixed(2) || '0.00'}</span></div>
+          <div className="summary-row">
+            <span>IVA {totals.iva_usd > 0 ? '(16%)' : '(0%)'}</span>
+            <span>${totals.iva_usd?.toFixed(2) || '0.00'}</span>
+          </div>
           {commission > 0 && (
             <div className="summary-row accent-yellow">
-              <span>Comisión ({derivedDoctor?.porcentaje_comision || 0}%)</span>
+              <span>Comisión Total Servicios</span>
               <span>-${commission.toFixed(2)}</span>
             </div>
           )}
@@ -413,7 +439,7 @@ const InvoiceForm = ({ onProcessComplete }) => {
             onClick={() => {
               clearDraft();
               setSelectedPatient(null); setPatientSearch('');
-              setInvoiceItems([]); setDerivedDoctor(null);
+              setInvoiceItems([]); setSelectedDoctor(null);
               setMetodoPago('EFECTIVO_USD'); setDetallePago('');
             }}
           >

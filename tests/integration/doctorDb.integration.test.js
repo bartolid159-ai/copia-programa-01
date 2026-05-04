@@ -25,8 +25,7 @@ describe('Doctor DB Integration (Real SQLite)', () => {
     cedula_rif: 'V-TEST',
     telefono: '0412-TEST',
     correo: 'test@example.com',
-    especialidad: 'Testing',
-    porcentaje_comision: 10
+    especialidad: 'Testing'
   };
 
   it('should insert a doctor and retrieve it', () => {
@@ -42,11 +41,9 @@ describe('Doctor DB Integration (Real SQLite)', () => {
   it('should update an existing doctor', () => {
     const doctors = getAllMedicos();
     const doctor = doctors.find(d => d.nombre === sampleDoctor.nombre);
-    
     const updatedData = {
       ...doctor,
-      nombre: 'Updated Name',
-      porcentaje_comision: 20
+      nombre: 'Updated Name'
     };
 
     updateMedico(updatedData);
@@ -54,7 +51,6 @@ describe('Doctor DB Integration (Real SQLite)', () => {
     const refreshed = getAllMedicos();
     const found = refreshed.find(d => d.id === doctor.id);
     expect(found.nombre).toBe('Updated Name');
-    expect(found.porcentaje_comision).toBe(20);
   });
 
   it('should soft-delete (deactivate) a doctor', () => {

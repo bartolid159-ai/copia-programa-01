@@ -107,6 +107,14 @@ function initializeDb(dbPath, loadSchema) {
         try {
           const schemaSql = fs.readFileSync(schemaPath, 'utf8');
           dbInstance.exec(schemaSql);
+
+          // Migración: Añadir porcentaje_comision a servicios si no existe
+          try {
+            dbInstance.prepare("ALTER TABLE servicios ADD COLUMN porcentaje_comision REAL DEFAULT 0.0").run();
+            console.log("Migración: Columna 'porcentaje_comision' añadida a 'servicios'");
+          } catch (e) {
+            // Ignorar si la columna ya existe
+          }
         } catch (err) {
           console.error("Error cargando el esquema SQL:", err);
         }
@@ -157,8 +165,8 @@ export function executeTransaction(callback) {
 export const insertPaciente = (data) => {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO pacientes (cedula_rif, nombre, sexo, fecha_nacimiento, telefono, correo, direccion)
-    VALUES (@cedula_rif, @nombre, @sexo, @fecha_nacimiento, @telefono, @correo, @direccion)
+    INSERT INTO pacientes (cedula_rif, nombre, sexo, edad, telefono, correo, direccion)
+    VALUES (@cedula_rif, @nombre, @sexo, @edad, @telefono, @correo, @direccion)
   `);
   return stmt.run(data);
 };
@@ -167,6 +175,22 @@ export const getPacienteByCedula = (cedula_rif) => {
   const db = getDb();
   const stmt = db.prepare('SELECT * FROM pacientes WHERE cedula_rif = ?');
   return stmt.get(cedula_rif);
+};
+
+export const updatePaciente = (data) => {
+  const db = getDb();
+  const stmt = db.prepare(`
+    UPDATE pacientes 
+    SET cedula_rif = @cedula_rif, 
+        nombre = @nombre, 
+        sexo = @sexo, 
+        edad = @edad, 
+        telefono = @telefono, 
+        correo = @correo, 
+        direccion = @direccion
+    WHERE id = @id
+  `);
+  return stmt.run(data);
 };
 
 export const searchPatients = (query) => {
@@ -189,8 +213,8 @@ export const getAllPatients = () => {
 export const insertMedico = (data) => {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO medicos (nombre, cedula_rif, telefono, correo, especialidad, porcentaje_comision, activo)
-    VALUES (@nombre, @cedula_rif, @telefono, @correo, @especialidad, @porcentaje_comision, 1)
+    INSERT INTO medicos (nombre, cedula_rif, telefono, correo, especialidad, activo)
+    VALUES (@nombre, @cedula_rif, @telefono, @correo, @especialidad, 1)
   `);
   return stmt.run(data);
 };
@@ -203,8 +227,7 @@ export const updateMedico = (data) => {
         cedula_rif = @cedula_rif, 
         telefono = @telefono, 
         correo = @correo, 
-        especialidad = @especialidad, 
-        porcentaje_comision = @porcentaje_comision
+        especialidad = @especialidad
     WHERE id = @id
   `);
   return stmt.run(data);
@@ -366,10 +389,15 @@ export const getAllCategorias = () => {
 export const insertServicio = (data) => {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO servicios (nombre, precio_usd, es_exento, id_medico_defecto)
-    VALUES (@nombre, @precio_usd, @es_exento, @id_medico_defecto)
+    INSERT INTO servicios (nombre, precio_usd, es_exento, porcentaje_comision, gasto_precio_usd, gasto_descripcion)
+    VALUES (@nombre, @precio_usd, @es_exento, @porcentaje_comision, @gasto_precio_usd, @gasto_descripcion)
   `);
-  return stmt.run(data);
+  return stmt.run({
+    ...data,
+    porcentaje_comision: data.porcentaje_comision || 0,
+    gasto_precio_usd: data.gasto_precio_usd || 0,
+    gasto_descripcion: data.gasto_descripcion || null
+  });
 };
 
 export const updateServicio = (data) => {
@@ -379,10 +407,17 @@ export const updateServicio = (data) => {
     SET nombre = @nombre, 
         precio_usd = @precio_usd, 
         es_exento = @es_exento, 
-        id_medico_defecto = @id_medico_defecto
+        porcentaje_comision = @porcentaje_comision,
+        gasto_precio_usd = @gasto_precio_usd,
+        gasto_descripcion = @gasto_descripcion
     WHERE id = @id
   `);
-  return stmt.run(data);
+  return stmt.run({
+    ...data,
+    porcentaje_comision: data.porcentaje_comision || 0,
+    gasto_precio_usd: data.gasto_precio_usd || 0,
+    gasto_descripcion: data.gasto_descripcion || null
+  });
 };
 
 export const deleteServicio = (id) => {
@@ -396,9 +431,8 @@ export const deleteServicio = (id) => {
 export const getAllServicios = () => {
   const db = getDb();
   const stmt = db.prepare(`
-    SELECT s.*, m.nombre AS medico_nombre
+    SELECT s.*
     FROM servicios s
-    LEFT JOIN medicos m ON s.id_medico_defecto = m.id
     ORDER BY s.nombre ASC
     LIMIT 100
   `);
@@ -408,9 +442,8 @@ export const getAllServicios = () => {
 export const getServicioById = (id) => {
   const db = getDb();
   const stmt = db.prepare(`
-    SELECT s.*, m.nombre AS medico_nombre
+    SELECT s.*
     FROM servicios s
-    LEFT JOIN medicos m ON s.id_medico_defecto = m.id
     WHERE s.id = ?
   `);
   return stmt.get(id);
@@ -483,30 +516,51 @@ export const processInvoice = (invoiceData) => {
   if (isBrowser && !isTest) {
     const invoices = JSON.parse(localStorage.getItem(INVOICES_KEY) || '[]');
     const facturaId = invoices.length > 0 ? Math.max(...invoices.map(i => i.id)) + 1 : 1;
-    const newInvoice = { 
-      ...invoiceData, 
-      id: facturaId, 
-      fecha: new Date().toISOString(), 
-      estatus: 'PAGADA',
-      metodo_pago: invoiceData.metodo_pago || 'EFECTIVO_USD',
-      detalle_pago: invoiceData.detalle_pago || ''
-    };
-    invoices.push(newInvoice);
-    localStorage.setItem(INVOICES_KEY, JSON.stringify(invoices));
-    
-    // Descontar stock de insumos en localStorage
+    const r2 = (n) => Math.round(n * 100) / 100;
+
+    // ─── Calcular costos operativos para contabilidad del Dashboard ─────
+    let costo_insumos_usd = 0;
+    let gasto_extra_usd   = 0;
+    const commission_usd  = r2(invoiceData.commission || 0);
+
+    // 1. Costo de insumos consumidos + descuento de stock
     const { requiredInsumos } = invoiceData;
     if (requiredInsumos && requiredInsumos.length > 0) {
       const insumos = JSON.parse(localStorage.getItem(INSUMOS_KEY) || '[]');
       for (const req of requiredInsumos) {
         const insumoIndex = insumos.findIndex(i => i.id === req.id_insumo);
         if (insumoIndex !== -1) {
+          costo_insumos_usd += (insumos[insumoIndex].costo_unitario_usd || 0) * req.cantidad_total;
           insumos[insumoIndex].stock_actual = Math.max(0, (insumos[insumoIndex].stock_actual || 0) - req.cantidad_total);
         }
       }
       localStorage.setItem(INSUMOS_KEY, JSON.stringify(insumos));
     }
-    
+
+    // 2. Gasto extra asociado a cada servicio facturado
+    const serviciosBrowser = JSON.parse(localStorage.getItem('clinica_servicios') || '[]');
+    for (const item of (invoiceData.items || [])) {
+      const srv = serviciosBrowser.find(s => Number(s.id) === Number(item.id_servicio));
+      if (srv && Number(srv.gasto_precio_usd) > 0) {
+        gasto_extra_usd += Number(srv.gasto_precio_usd) * (item.cantidad || 1);
+      }
+    }
+
+    const newInvoice = {
+      ...invoiceData,
+      id: facturaId,
+      fecha: new Date().toISOString(),
+      estatus: 'PAGADA',
+      metodo_pago: invoiceData.metodo_pago || 'EFECTIVO_USD',
+      detalle_pago: invoiceData.detalle_pago || '',
+      // Costos operativos pre-calculados para el Dashboard de Contabilidad
+      costo_insumos_usd: r2(costo_insumos_usd),
+      gasto_extra_usd:   r2(gasto_extra_usd),
+      commission_usd
+    };
+    invoices.push(newInvoice);
+    localStorage.setItem(INVOICES_KEY, JSON.stringify(invoices));
+
     return { success: true, facturaId, message: 'Factura procesada (Navegador)' };
   }
 
@@ -536,7 +590,7 @@ export const processInvoice = (invoiceData) => {
       insertDetalle.run({
         id_factura: facturaId, id_servicio: item.id_servicio,
         cantidad: item.cantidad, precio_unitario_usd: round2(item.precio_usd),
-        iva_porcentaje: item.es_exento ? 0 : 16
+        iva_porcentaje: (item.aplica_iva === true || item.es_exento === false) ? 16 : 0
       });
     }
 
@@ -619,11 +673,52 @@ export const processInvoice = (invoiceData) => {
       }
     }
 
+    // 5. Gastos asociados a servicios (si existen)
+    for (const item of items) {
+      const srv = db.prepare('SELECT gasto_precio_usd, gasto_descripcion FROM servicios WHERE id = ?').get(item.id_servicio);
+      if (srv && srv.gasto_precio_usd > 0) {
+        const totalGasto = round2(srv.gasto_precio_usd * item.cantidad);
+        insertAsiento.run({
+          tipo: 'EGRESO',
+          categoria: 'GASTO_EXTRA_SERVICIO',
+          debe_usd: 0,
+          haber_usd: totalGasto,
+          debe_ves: 0,
+          haber_ves: round2(totalGasto * tasa_cambio),
+          tasa_referencia: tasa_cambio,
+          descripcion: `Factura #${facturaId} - ${srv.gasto_descripcion || 'Gasto extra de servicio'}`,
+          referencia_id: facturaId
+        });
+      }
+    }
+
     return { success: true, facturaId, message: 'Factura procesada (Bimoneda)' };
   });
 };
 
 export const getFacturaById = (id) => {
+  if (isBrowser) {
+    const invoices = JSON.parse(localStorage.getItem(INVOICES_KEY) || '[]');
+    const invoice = invoices.find(f => f.id === id);
+    if (!invoice) return null;
+    
+    // Simular joins con pacientes y medicos en browser
+    const patients = JSON.parse(localStorage.getItem(PATIENTS_KEY) || '[]');
+    const doctors = JSON.parse(localStorage.getItem(DOCTORS_KEY) || '[]');
+    const patient = patients.find(p => p.id === invoice.id_paciente);
+    const doctor = doctors.find(d => d.id === invoice.id_medico);
+    
+    return {
+      ...invoice,
+      total_usd: invoice.total_usd || invoice.totals?.total_usd || 0,
+      total_ves: invoice.total_ves || invoice.totals?.total_ves || 0,
+      subtotal_usd: invoice.subtotal_usd || invoice.totals?.subtotal_usd || 0,
+      iva_usd: invoice.iva_usd || invoice.totals?.iva_usd || 0,
+      paciente_nombre: patient ? patient.nombre : '—',
+      medico_nombre: doctor ? doctor.nombre : '—'
+    };
+  }
+
   const db = getDb();
   const stmt = db.prepare(`
     SELECT f.*, p.nombre AS paciente_nombre, m.nombre AS medico_nombre
@@ -636,6 +731,23 @@ export const getFacturaById = (id) => {
 };
 
 export const getFacturaDetalles = (id_factura) => {
+  if (isBrowser) {
+    const invoices = JSON.parse(localStorage.getItem(INVOICES_KEY) || '[]');
+    const invoice = invoices.find(f => f.id === id_factura);
+    if (!invoice || !invoice.items) return [];
+    
+    // En el modo browser guardamos los items dentro de la factura
+    // para simplificar el localStorage. Los mapeamos al formato de tabla.
+    const services = JSON.parse(localStorage.getItem('clinica_servicios') || '[]');
+    return invoice.items.map(item => {
+      const srv = services.find(s => s.id === item.id_servicio);
+      return {
+        ...item,
+        servicio_nombre: srv ? srv.nombre : 'Servicio Desconocido'
+      };
+    });
+  }
+
   const db = getDb();
   const stmt = db.prepare(`
     SELECT fd.*, s.nombre AS servicio_nombre
@@ -657,10 +769,20 @@ export const getHistorialFacturas = (filters = {}) => {
     if (startDate) invoices = invoices.filter(inv => inv.fecha >= startDate);
     if (endDate) invoices = invoices.filter(inv => inv.fecha <= endDate);
 
-    // Mapear nombres de pacientes
+    // Mapear datos adicionales (pacientes, médicos y totales)
+    const doctors = JSON.parse(localStorage.getItem(DOCTORS_KEY) || '[]');
     invoices = invoices.map(inv => {
       const p = patients.find(p => p.id === inv.id_paciente);
-      return { ...inv, paciente_nombre: p ? p.nombre : 'Paciente Desconocido' };
+      const d = doctors.find(doc => doc.id === inv.id_medico);
+      return { 
+        ...inv, 
+        paciente_nombre: p ? p.nombre : '—',
+        paciente_cedula: p ? p.cedula_rif : '—',
+        paciente_telefono: p ? p.telefono : '—',
+        medico_nombre: d ? d.nombre : '—',
+        total_usd: inv.total_usd || inv.totals?.total_usd || 0,
+        total_ves: inv.total_ves || inv.totals?.total_ves || 0
+      };
     });
 
     // Filtro por búsqueda (searchQuery)
@@ -668,8 +790,8 @@ export const getHistorialFacturas = (filters = {}) => {
       const q = searchQuery.toLowerCase();
       invoices = invoices.filter(inv => 
         inv.paciente_nombre.toLowerCase().includes(q) || 
-        (inv.paciente_cedula && inv.paciente_cedula.toLowerCase().includes(q)) ||
-        (inv.paciente_telefono && inv.paciente_telefono.toLowerCase().includes(q))
+        (inv.paciente_cedula && String(inv.paciente_cedula).toLowerCase().includes(q)) ||
+        (inv.paciente_telefono && String(inv.paciente_telefono).toLowerCase().includes(q))
       );
     }
 
@@ -678,9 +800,12 @@ export const getHistorialFacturas = (filters = {}) => {
 
   const db = getDb();
   let query = `
-    SELECT f.*, p.nombre as paciente_nombre, p.cedula_rif as paciente_cedula, p.telefono as paciente_telefono
+    SELECT f.*, 
+           p.nombre as paciente_nombre, p.cedula_rif as paciente_cedula, p.telefono as paciente_telefono,
+           m.nombre as medico_nombre
     FROM facturas f
-    JOIN pacientes p ON f.id_paciente = p.id
+    LEFT JOIN pacientes p ON f.id_paciente = p.id
+    LEFT JOIN medicos m ON f.id_medico = m.id
     WHERE 1=1
   `;
   const params = [];
@@ -689,9 +814,9 @@ export const getHistorialFacturas = (filters = {}) => {
   if (endDate)   { query += " AND DATE(f.fecha) <= ?"; params.push(endDate);   }
   
   if (searchQuery) {
-    query += " AND (p.nombre LIKE ? OR p.cedula_rif LIKE ? OR p.telefono LIKE ?)";
+    query += " AND (p.nombre LIKE ? OR p.cedula_rif LIKE ? OR p.telefono LIKE ? OR f.id LIKE ?)";
     const q = `%${searchQuery}%`;
-    params.push(q, q, q);
+    params.push(q, q, q, q);
   }
 
   query += " ORDER BY f.fecha DESC";
@@ -713,8 +838,10 @@ export const getAllFacturas = () => {
         paciente_cedula: patient ? patient.cedula_rif : '—',
         paciente_telefono: patient ? patient.telefono : '—',
         medico_nombre: doctor ? doctor.nombre : '—',
-        total_usd: inv.totals?.total_usd || 0,
-        total_ves: inv.totals?.total_ves || 0,
+        total_usd: inv.totals?.total_usd || inv.total_usd || 0,
+        total_ves: inv.totals?.total_ves || inv.total_ves || 0,
+        subtotal_usd: inv.totals?.subtotal_usd || inv.subtotal_usd || 0,
+        iva_usd: inv.totals?.iva_usd || inv.iva_usd || 0,
         metodo_pago: inv.metodo_pago || 'EFECTIVO_USD',
         detalle_pago: inv.detalle_pago || ''
       };
@@ -855,6 +982,22 @@ export const registrarCompra = (compraData) => {
         costo_unitario_usd: Math.round(item.costo_unitario_usd * 100) / 100
       });
     }
+
+    // Asiento contable (EGRESO)
+    const tasaEntry = db.prepare('SELECT valor_bcv FROM historial_tasas ORDER BY fecha DESC LIMIT 1').get();
+    const tasa = tasaEntry ? tasaEntry.valor_bcv : 36;
+    const totalVes = Math.round(totalUsd * tasa * 100) / 100;
+    
+    db.prepare(`
+      INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, debe_ves, haber_ves, tasa_referencia, descripcion, referencia_id)
+      VALUES ('EGRESO', 'COMPRA_INVENTARIO', 0, ?, 0, ?, ?, ?, ?)
+    `).run(
+      Math.round(totalUsd * 100) / 100,
+      totalVes,
+      tasa,
+      `Compra a ${proveedor || 'Proveedor'}`,
+      compraId
+    );
 
     return { success: true, compraId, message: 'Compra y lote registrados correctamente' };
   });
@@ -1154,6 +1297,23 @@ export const getAllLiquidaciones = () => {
   return stmt.all();
 };
 
+
+export const deleteLiquidacion = (id) => {
+  if (isBrowser) {
+    const liquidaciones = JSON.parse(localStorage.getItem('clinica_liquidaciones_db') || '[]');
+    localStorage.setItem('clinica_liquidaciones_db', JSON.stringify(liquidaciones.filter(l => l.id !== id)));
+    return { success: true };
+  }
+  const db = getDb();
+  const result = db.prepare('DELETE FROM liquidaciones_medicos WHERE id = ?').run(id);
+  return { success: result.changes > 0 };
+};
+
+export const getPendingLiquidationsCount = async () => {
+  const resumen = await getResumenComisionesPorMedico();
+  return resumen.filter(m => m.saldo_pendiente_usd > 0.01).length;
+};
+
 /**
  * Elimina una factura y todos sus registros asociados (detalles y asientos).
  * @param {number} id - ID de la factura a eliminar
@@ -1440,12 +1600,34 @@ export const deleteAsientoManual = (id) => {
     const list = JSON.parse(localStorage.getItem('clinica_asientos_manuales') || '[]');
     const filtered = list.filter(a => a.id !== id);
     localStorage.setItem('clinica_asientos_manuales', JSON.stringify(filtered));
-    return true;
+    return { success: true };
   }
   const db = getDb();
   // Solo permitimos borrar EGRESOS para evitar corrupcion de facturacion
   const result = db.prepare("DELETE FROM contabilidad_asientos WHERE id = ? AND tipo = 'EGRESO'").run(id);
-  return result.changes > 0;
+  return { success: result.changes > 0 };
+};
+
+export const deleteCompra = (id) => {
+  if (isBrowser) {
+    const compras = JSON.parse(localStorage.getItem('clinica_compras') || '[]');
+    const detalles = JSON.parse(localStorage.getItem('clinica_compra_detalles') || '[]');
+    
+    localStorage.setItem('clinica_compras', JSON.stringify(compras.filter(c => c.id !== id)));
+    localStorage.setItem('clinica_compra_detalles', JSON.stringify(detalles.filter(d => d.id_compra !== id)));
+    return { success: true };
+  }
+  const db = getDb();
+  try {
+    db.transaction(() => {
+      db.prepare("DELETE FROM compra_detalles WHERE id_compra = ?").run(id);
+      db.prepare("DELETE FROM compras WHERE id = ?").run(id);
+    })();
+    return { success: true };
+  } catch (err) {
+    console.error("Error al borrar compra:", err);
+    return { success: false, error: err.message };
+  }
 };
 
 /**
@@ -1468,7 +1650,8 @@ export const insertAlquilerConsultorio = (data) => {
       fecha: data.fecha,
       tipo: 'INGRESO',
       categoria: 'ALQUILER_CONSULTORIO',
-      haber_usd: data.precio_usd,
+      debe_usd: data.precio_usd,
+      haber_usd: 0,
       descripcion: `Alquiler ${data.consultorio} - ${data.nombre_arrendatario} (${data.turno})`,
       referencia_id: newAlquiler.id
     });
@@ -1494,8 +1677,8 @@ export const insertAlquilerConsultorio = (data) => {
     const alquilerId = result.lastInsertRowid;
 
     const stmtAsiento = db.prepare(`
-      INSERT INTO contabilidad_asientos (fecha, tipo, categoria, haber_usd, descripcion, referencia_id)
-      VALUES (?, 'INGRESO', 'ALQUILER_CONSULTORIO', ?, ?, ?)
+      INSERT INTO contabilidad_asientos (fecha, tipo, categoria, debe_usd, haber_usd, descripcion, referencia_id)
+      VALUES (?, 'INGRESO', 'ALQUILER_CONSULTORIO', ?, 0, ?, ?)
     `);
     stmtAsiento.run(
       data.fecha + 'T12:00:00',

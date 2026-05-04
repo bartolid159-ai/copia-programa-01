@@ -82,7 +82,7 @@ const PatientList = ({ onAddClick, onEditClick }) => {
               <th>Cédula / RIF</th>
               <th>Teléfono</th>
               <th>Correo</th>
-              <th>Fecha Nac.</th>
+              <th>Edad</th>
               <th>Sexo</th>
               <th style={{ textAlign: 'center' }}>Acciones</th>
             </tr>
@@ -99,7 +99,7 @@ const PatientList = ({ onAddClick, onEditClick }) => {
                   <td>{p.cedula_rif}</td>
                   <td>{p.telefono || '-'}</td>
                   <td>{p.correo || '-'}</td>
-                  <td>{p.fecha_nacimiento}</td>
+                  <td>{p.edad}</td>
                   <td>{p.sexo}</td>
                   <td style={{ textAlign: 'center' }}>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>

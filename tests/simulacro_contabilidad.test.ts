@@ -54,7 +54,7 @@ describe('Simulacro de Módulo de Contabilidad (QA E2E Logic)', () => {
       cedula_rif: 'V-102030',
       nombre: 'Carlos Prueba',
       sexo: 'M',
-      fecha_nacimiento: '1990-01-01',
+      edad: 35,
       telefono: '0424-9999999',
       correo: 'carlos@prueba.com',
       direccion: 'Ciudad QA'
@@ -83,9 +83,10 @@ describe('Simulacro de Módulo de Contabilidad (QA E2E Logic)', () => {
       nombre: 'Consulta General QA',
       precio_usd: 50,
       es_exento: 1,
+      porcentaje_comision: 20,
       id_medico_defecto: medicoId,
-      gasto_descripcion: null,
-      gasto_precio_usd: 0
+      gasto_descripcion: 'Material Desechable Especial',
+      gasto_precio_usd: 10
     }).lastInsertRowid;
 
     dbManager.setServicioInsumos(servicioId, [{ id_insumo: insumoId, cantidad: 1 }]);
@@ -97,7 +98,7 @@ describe('Simulacro de Módulo de Contabilidad (QA E2E Logic)', () => {
     // Factura 1: USD Cash
     const items1 = [{ id_servicio: servicioId, nombre: 'Consulta', cantidad: 1, precio_usd: 50, es_exento: true }];
     const totals1 = billingEngine.calculateTotals(items1, tasa) as InvoiceTotals;
-    const comm1 = billingEngine.calculateCommission(totals1.total_usd, 20);
+    const comm1 = billingEngine.calculateCommission(items1.map(it => ({ ...it, porcentaje_comision: 20 })));
     const reqInsumos1 = billingEngine.getRequiredInsumos(items1, { [servicioId]: [{ id_insumo: insumoId, cantidad: 1 }] });
 
     dbManager.processInvoice({
@@ -114,7 +115,7 @@ describe('Simulacro de Módulo de Contabilidad (QA E2E Logic)', () => {
     // Factura 2: VES Transfer
     const items2 = [{ id_servicio: servicioId, nombre: 'Consulta', cantidad: 1, precio_usd: 50, es_exento: true }];
     const totals2 = billingEngine.calculateTotals(items2, tasa) as InvoiceTotals;
-    const comm2 = billingEngine.calculateCommission(totals2.total_usd, 20);
+    const comm2 = billingEngine.calculateCommission(items2.map(it => ({ ...it, porcentaje_comision: 20 })));
     const reqInsumos2 = billingEngine.getRequiredInsumos(items2, { [servicioId]: [{ id_insumo: insumoId, cantidad: 1 }] });
 
     dbManager.processInvoice({
@@ -136,12 +137,11 @@ describe('Simulacro de Módulo de Contabilidad (QA E2E Logic)', () => {
     // Ingresos VES = 100 * 35.5 = 3550
     expect(kpis.ingresos.ves).toBe(3550);
 
-    // Egresos (Compra Inventario: 12 unidades * 5 USD = 60 USD)
-    // Nota: Las comisiones no se restan aquí porque no se ha realizado la liquidación todavía.
-    expect(kpis.egresos.usd).toBe(60);
+    // Egresos (Compra Inventario: 60 USD) + (Comisiones Médicas: 10 + 10 = 20 USD) + (Gasto Extra: 10 + 10 = 20 USD) = 100 USD
+    expect(kpis.egresos.usd).toBe(100);
 
-    // Ganancia Neta: 100 (Ingresos) - 60 (Compra Inventario) = 40 USD
-    expect(kpis.ganancia_neta.usd).toBe(40);
+    // Ganancia Neta: 100 (Ingresos) - 100 (Egresos) = 0 USD
+    expect(kpis.ganancia_neta.usd).toBe(0);
 
     // Alertas de Stock: Stock inicial 12, usado 2. Quedan 10. Stock Min es 10. Debe salir en alertas (stock_actual <= stock_minimo)
     const alertas = reportService.getStockAlertas() as StockAlerta[];
@@ -154,8 +154,8 @@ describe('Simulacro de Módulo de Contabilidad (QA E2E Logic)', () => {
     const topServ = tops.find((s: TopServicio) => s.nombre === 'Consulta General QA');
     expect(topServ).toBeDefined();
     expect(topServ?.ingresos_usd).toBe(100);
-    // Ganancia por servicio: El modelo actual descuenta COSTO_INSUMO (10 USD) y COMISION_MEDICO (20% de 100 = 20 USD).
-    // Ganancia neta real = 100 - 10 - 20 = 70 USD.
-    expect(topServ?.ganancia_neta_usd).toBe(70);
+    // Ganancia por servicio: El modelo actual descuenta COSTO_INSUMO (10 USD), COMISION_MEDICO (20% de 100 = 20 USD) y GASTO_EXTRA (20 USD).
+    // Ganancia neta real = 100 - 10 - 20 - 20 = 50 USD.
+    expect(topServ?.ganancia_neta_usd).toBe(50);
   });
 });

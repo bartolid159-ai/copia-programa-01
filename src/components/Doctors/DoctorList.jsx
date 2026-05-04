@@ -93,16 +93,15 @@ const DoctorList = ({ onAddClick, onEditClick, onDeleteClick }) => {
               <th>Cédula / RIF</th>
               <th>Especialidad</th>
               <th>Teléfono</th>
-              <th>Comisión</th>
               <th>Estatus</th>
               <th style={{ textAlign: 'center' }}>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="7">Cargando...</td></tr>
+              <tr><td colSpan="6">Cargando...</td></tr>
             ) : doctors.length === 0 ? (
-              <tr><td colSpan="7">No se encontraron médicos.</td></tr>
+              <tr><td colSpan="6">No se encontraron médicos.</td></tr>
             ) : (
               doctors.map(d => (
                 <tr key={d.id}>
@@ -113,7 +112,6 @@ const DoctorList = ({ onAddClick, onEditClick, onDeleteClick }) => {
                   <td>{d.cedula_rif || 'N/A'}</td>
                   <td>{d.especialidad}</td>
                   <td>{d.telefono || 'N/A'}</td>
-                  <td><span className="commission-badge">{d.porcentaje_comision}%</span></td>
                   <td>
                     <span className={`status-badge ${d.activo ? 'active' : 'inactive'}`}>
                       {d.activo ? 'Activo' : 'Inactivo'}

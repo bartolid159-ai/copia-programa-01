@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import * as insumoLogic from '../../logic/insumoLogic.js';
 import Notification from '../Common/Notification';
+import SecurityModal from '../Common/SecurityModal';
 
 const PurchasesList = ({ onAddClick }) => {
   const [compras, setCompras] = useState([]);
@@ -11,6 +12,9 @@ const PurchasesList = ({ onAddClick }) => {
   const [expandedId, setExpandedId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchFecha, setSearchFecha] = useState('');
+
+  // Seguridad
+  const [securityModal, setSecurityModal] = useState({ isOpen: false, purchaseId: null });
 
   const [proveedor, setProveedor] = useState('');
   const [observaciones, setObservaciones] = useState('');
@@ -105,6 +109,35 @@ const PurchasesList = ({ onAddClick }) => {
       showNotification('Error al registrar la compra', 'error');
     }
     setSaving(false);
+  };
+
+  const handleConfirmDelete = async (password) => {
+    try {
+      const { login } = await import('../../auth');
+      const authResult = await login('admin', password);
+      
+      if (!authResult.success) {
+        setSecurityModal(prev => ({ ...prev, error: 'Clave incorrecta. Acceso denegado.' }));
+        return;
+      }
+
+      const id = securityModal.purchaseId;
+      const result = await insumoLogic.deleteCompra(id);
+      if (result.success) {
+        showNotification('Compra eliminada correctamente');
+        setSecurityModal({ isOpen: false, purchaseId: null, error: '' });
+        loadData();
+      } else {
+        showNotification(result.error || 'Error al eliminar la compra', 'error');
+      }
+    } catch (err) {
+      console.error('Error al eliminar compra:', err);
+      showNotification('Error al procesar el borrado', 'error');
+    }
+  };
+
+  const handleDeleteClick = (id) => {
+    setSecurityModal({ isOpen: true, purchaseId: id, error: '' });
   };
 
   const totalUSD = items.reduce((sum, item) => sum + (item.cantidad * item.costo_unitario_usd), 0);
@@ -221,7 +254,7 @@ const PurchasesList = ({ onAddClick }) => {
                   <th>Fecha</th>
                   <th>Lotes</th>
                   <th>Total USD</th>
-                  <th>Detalle</th>
+                  <th style={{ textAlign: 'center' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -266,15 +299,29 @@ const PurchasesList = ({ onAddClick }) => {
                         </span>
                       </td>
 
-                      {/* Botón expandir */}
+                      {/* Acciones */}
                       <td>
-                        <div className="action-buttons">
+                        <div className="action-buttons" style={{ justifyContent: 'center', gap: '8px' }}>
                           <button
                             className="btn-view"
                             title={expandedId === compra.id ? 'Cerrar detalle' : 'Ver detalle'}
                             onClick={() => toggleExpand(compra.id)}
+                            style={{ padding: '4px 8px' }}
                           >
                             {expandedId === compra.id ? '▲' : '▼'}
+                          </button>
+                          <button
+                            className="btn-delete"
+                            title="Eliminar Compra"
+                            onClick={() => handleDeleteClick(compra.id)}
+                            style={{ 
+                              padding: '4px 8px',
+                              background: 'rgba(255, 68, 68, 0.1)',
+                              border: '1px solid rgba(255, 68, 68, 0.2)',
+                              borderRadius: '6px'
+                            }}
+                          >
+                            🗑️
                           </button>
                         </div>
                       </td>
@@ -492,6 +539,15 @@ const PurchasesList = ({ onAddClick }) => {
           </div>
         </div>
       )}
+
+      <SecurityModal 
+        isOpen={securityModal.isOpen}
+        title="Confirmar Borrado de Compra"
+        message="¿Está seguro que desea eliminar este registro de compra? Los niveles de inventario no se revertirán automáticamente."
+        error={securityModal.error}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setSecurityModal({ isOpen: false, purchaseId: null, error: '' })}
+      />
 
       {/* Estilos locales que heredan del módulo de inventario */}
       <style>{`

@@ -6,9 +6,14 @@ export const registrarAlquiler = async (alquilerData) => {
       return { success: false, message: "Todos los campos son obligatorios." };
     }
 
+    const precioNum = Number(alquilerData.precio_usd);
+    if (precioNum <= 0) {
+      return { success: false, message: "El precio del alquiler debe ser mayor a 0." };
+    }
+
     const result = dbManager.insertAlquilerConsultorio({
       ...alquilerData,
-      precio_usd: Number(alquilerData.precio_usd)
+      precio_usd: precioNum
     });
 
     return { 

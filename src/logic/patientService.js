@@ -28,8 +28,8 @@ const getBrowserPatients = () => {
     const data = localStorage.getItem(STORAGE_KEY);
     if (!data) {
         const initial = [
-            { id: 1, nombre: 'Juan Pérez', cedula_rif: 'V-123456', telefono: '0412-1111111', correo: 'juan@test.com', fecha_nacimiento: '1985-10-10', sexo: 'M', activo: 1 },
-            { id: 2, nombre: 'María García', cedula_rif: 'V-654321', telefono: '0424-2222222', correo: 'maria@test.com', fecha_nacimiento: '1992-05-15', sexo: 'F', activo: 1 }
+            { id: 1, nombre: 'Juan Pérez', cedula_rif: 'V-123456', telefono: '0412-1111111', correo: 'juan@test.com', edad: 35, sexo: 'M', activo: 1 },
+            { id: 2, nombre: 'María García', cedula_rif: 'V-654321', telefono: '0424-2222222', correo: 'maria@test.com', edad: 28, sexo: 'F', activo: 1 }
         ];
         localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
         return initial;
@@ -48,7 +48,7 @@ const saveBrowserPatients = (patients) => {
  */
 export const registerPatient = async (patientData) => {
   try {
-    const requiredFields = ['cedula_rif', 'nombre', 'sexo', 'fecha_nacimiento'];
+    const requiredFields = ['cedula_rif', 'nombre', 'sexo', 'edad'];
     for (const field of requiredFields) {
       if (!patientData[field]) {
         return { success: false, message: `El campo ${field} es obligatorio.` };
@@ -95,11 +95,13 @@ export const updatePatient = async (patientData) => {
         }
         return { success: false, message: "Paciente no encontrado." };
     }
-    // TODO: Implement actual SQL update when needed (Tarea 03 focused on registration mostly)
-    return { success: true, message: "Actualización exitosa (SQL placeholder)." };
+    
+    const db = await getDbManager();
+    db.updatePaciente(patientData);
+    return { success: true, message: "Paciente actualizado exitosamente." };
   } catch (error) {
     console.error("Error in updatePatient:", error);
-    return { success: false, message: "Error al actualizar." };
+    return { success: false, message: "Error al actualizar el paciente." };
   }
 };
 

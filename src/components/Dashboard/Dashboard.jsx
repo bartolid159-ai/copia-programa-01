@@ -25,6 +25,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [viewMode, setViewMode] = useState('global'); // 'global' o 'operativo'
 
   useEffect(() => {
     const loadStats = async () => {
@@ -80,13 +81,13 @@ function Dashboard() {
           <DashboardFilters filters={filters} onFilterChange={handleFilterChange} />
 
           {/* 1. KPIs Principales */}
-          <KpiPanel kpis={stats?.kpis} loading={loading} />
+          <KpiPanel kpis={stats?.kpis} loading={loading} viewMode={viewMode} setViewMode={setViewMode} />
 
           <div className="dashboard-layout" style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
             
             {/* Fila 1: Gráfica y Alertas Stock */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px' }}>
-              <RevenueChart trendData={stats?.trend} loading={loading} />
+              <RevenueChart trendData={stats?.trend} loading={loading} viewMode={viewMode} />
               <StockAlertWidget />
             </div>
 

@@ -90,4 +90,51 @@ describe('reportService (Bimoneda)', () => {
       expect(diaHoy.ingresos_ves).toBe(3600);
     });
   });
+
+  describe('getDashboardStats — Sin doble conteo de PAGO_MEDICO', () => {
+    it('debe excluir PAGO_MEDICO de egresos operativos (ya cubierto por COMISION)', () => {
+      // Escenario real del usuario:
+      //   Servicio ginecologia: $50 ingreso
+      //   Comision medico 25%:  $12.50 (devengada como COMISION al facturar)
+      //   Guantes (5 pares):    $5.00  (COSTO_INSUMO)
+      //   Gasto laboratorio:    $5.00  (GASTO_EXTRA_SERVICIO)
+      //   Liquidacion medico:   $12.50 (PAGO_MEDICO — solo cash flow, NO debe sumarse)
+      //
+      //   Egresos operativos correctos = 12.50 + 5 + 5 = $22.50
+      //   Ganancia neta correcta       = 50 - 22.50    = $27.50
+      const hoy = new Date().toISOString().split('T')[0];
+      const stmt = db.prepare(
+        'INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, debe_ves, haber_ves, tasa_referencia, fecha) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      );
+      stmt.run('INGRESO', 'SERVICIO',            50,    0, 0, 0, 1, hoy);
+      stmt.run('EGRESO',  'COMISION',             0, 12.5, 0, 0, 1, hoy);
+      stmt.run('EGRESO',  'COSTO_INSUMO',         0,    5, 0, 0, 1, hoy);
+      stmt.run('EGRESO',  'GASTO_EXTRA_SERVICIO', 0,    5, 0, 0, 1, hoy);
+      // Liquidacion: pago de caja, NO debe duplicar el egreso operativo
+      stmt.run('EGRESO',  'PAGO_MEDICO',          0, 12.5, 0, 0, 1, hoy);
+
+      const result = reportService.getDashboardStats({});
+      const ops = result.kpis.operativos;
+      expect(ops.egresos_totales).toBe(22.5);
+      expect(ops.ganancia_neta).toBe(27.5);
+    });
+
+    it('GASTO_OPERATIVO debe aparecer en globales pero no en operativos directos', () => {
+      const hoy = new Date().toISOString().split('T')[0];
+      const stmt = db.prepare(
+        'INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, debe_ves, haber_ves, tasa_referencia, fecha) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      );
+      stmt.run('INGRESO', 'SERVICIO',      100,  0, 0, 0, 1, hoy);
+      stmt.run('EGRESO',  'COMISION',        0, 25, 0, 0, 1, hoy);
+      stmt.run('EGRESO',  'GASTO_OPERATIVO', 0, 10, 0, 0, 1, hoy); // alquiler, admin, etc.
+
+      const result = reportService.getDashboardStats({});
+      // Global incluye GASTO_OPERATIVO
+      expect(result.kpis.globales.egresos_totales).toBe(35);
+      expect(result.kpis.globales.ganancia_neta).toBe(65);
+      // Operativo solo incluye costos directos del servicio (sin gastos fijos)
+      expect(result.kpis.operativos.egresos_totales).toBe(25);
+      expect(result.kpis.operativos.ganancia_neta).toBe(75);
+    });
+  });
 });
