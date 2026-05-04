@@ -60,14 +60,14 @@ describe('Verification of Accounting KPIs', () => {
     console.log('TREND DATA:', stats.trend[0]);
 
     // Con la lógica de devengo (accrual):
-    // Global: COSTO_INSUMO(1) + COMISION(10) + GASTO_EXTRA_SERVICIO(5) = 16
+    // Global: COMISION(10) + GASTO_EXTRA_SERVICIO(5) = 15 (COSTO_INSUMO excluido del global)
     // (COMPRA_INVENTARIO ya NO cuenta en el Dashboard, evita doble contabilidad)
-    expect(stats.kpis.globales.egresos_totales).toBe(16);
+    expect(stats.kpis.globales.egresos_totales).toBe(15);
     // Operative: COSTO_INSUMO(1) + COMISION(10) + GASTO_EXTRA_SERVICIO(5) = 16
     expect(stats.kpis.operativos.egresos_totales).toBe(16);
     
     // Trend Data
-    expect(stats.trend[0].egresos_usd_global).toBe(16);
+    expect(stats.trend[0].egresos_usd_global).toBe(15);
     expect(stats.trend[0].egresos_usd_operativo).toBe(16);
   });
 });

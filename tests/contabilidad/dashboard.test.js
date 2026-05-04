@@ -73,22 +73,27 @@ describe('Dashboard Contable - Flujo de Negocio', () => {
     expect(stats.kpis.globales.margen_neto).toBe(0);
   });
 
-  it('debe usar contabilidad por devengo (ignorar compras, usar costo insumo)', () => {
+   it('debe usar contabilidad por devengo (ignorar compras, usar costo insumo)', () => {
     // 1. Ingreso de 100
     db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha) VALUES ('INGRESO', 'SERVICIO', 100, 0, '2026-04-29')").run();
     
     // 2. Compra de inventario de 500 (No debería afectar la ganancia neta en modo devengo)
     db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha) VALUES ('EGRESO', 'COMPRA_INVENTARIO', 0, 500, '2026-04-29')").run();
     
-    // 3. Costo de insumo usado de 5 (Sí debería afectar)
+    // 3. Costo de insumo usado de 5 (Sí debería afectar operativos, pero NO global)
     db.prepare("INSERT INTO contabilidad_asientos (tipo, categoria, debe_usd, haber_usd, fecha) VALUES ('EGRESO', 'COSTO_INSUMO', 0, 5, '2026-04-29')").run();
 
     const stats = getDashboardStats({ startDate: '2026-04-29', endDate: '2026-04-29' });
 
     // Ingresos: 100
-    // Egresos: 5 (Costo Insumo) + 0 (Compra ignorada)
-    // Ganancia: 95
-    expect(stats.kpis.globales.ganancia_neta).toBe(95);
-    expect(stats.kpis.globales.egresos_totales).toBe(5);
+    // Egresos globales: 0 (COSTO_INSUMO se excluye del global por plan de tarea 16)
+    // Ganancia global: 100 (100 - 0)
+    expect(stats.kpis.globales.ingresos_totales).toBe(100);
+    expect(stats.kpis.globales.egresos_totales).toBe(0);
+    expect(stats.kpis.globales.ganancia_neta).toBe(100);
+    
+    // Operativos: COSTO_INSUMO(5) se incluye
+    expect(stats.kpis.operativos.egresos_totales).toBe(5);
+    expect(stats.kpis.operativos.ganancia_neta).toBe(95);
   });
 });

@@ -319,16 +319,18 @@ export const getDashboardStats = (filters = {}) => {
       const egr_comision    = f.commission_usd ?? (f.commission ?? 0);
       const egr_insumo      = f.costo_insumos_usd || 0;
       const egr_gasto_extra = f.gasto_extra_usd || 0;
-      const egr_factura     = round2(egr_comision + egr_insumo + egr_gasto_extra);
+      
+      const egr_global      = round2(egr_comision + egr_gasto_extra);
+      const egr_operativo   = round2(egr_comision + egr_insumo + egr_gasto_extra);
 
-      egresos_usd_totales    += egr_factura;
-      egresos_usd_operativos += egr_factura;
+      egresos_usd_totales    += egr_global;
+      egresos_usd_operativos += egr_operativo;
 
       const dia = f.fecha ? f.fecha.split('T')[0] : 'sin-fecha';
       if (!mapaFecha[dia]) mapaFecha[dia] = { fecha: dia, ingresos_usd: 0, egresos_usd_global: 0, egresos_usd_operativo: 0 };
       mapaFecha[dia].ingresos_usd         += ingreso;
-      mapaFecha[dia].egresos_usd_global   += egr_factura;
-      mapaFecha[dia].egresos_usd_operativo += egr_factura;
+      mapaFecha[dia].egresos_usd_global   += egr_global;
+      mapaFecha[dia].egresos_usd_operativo += egr_operativo;
     }
 
     manuales.forEach(a => {
@@ -417,7 +419,7 @@ export const getDashboardStats = (filters = {}) => {
   const kpiQuery = `
     SELECT 
       SUM(a.debe_usd) as ingresos_usd,
-      SUM(CASE WHEN a.categoria IN ('GASTO_OPERATIVO', 'COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_totales,
+      SUM(CASE WHEN a.categoria IN ('GASTO_OPERATIVO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_totales,
       SUM(CASE WHEN a.categoria IN ('COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_operativos
     FROM contabilidad_asientos a
     ${joinClause}
@@ -434,7 +436,7 @@ export const getDashboardStats = (filters = {}) => {
     SELECT 
       DATE(a.fecha) as fecha_dia,
       SUM(a.debe_usd) as ingresos_usd,
-      SUM(CASE WHEN a.categoria IN ('GASTO_OPERATIVO', 'COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_global,
+      SUM(CASE WHEN a.categoria IN ('GASTO_OPERATIVO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_global,
       SUM(CASE WHEN a.categoria IN ('COSTO_INSUMO', 'COMISION', 'GASTO_EXTRA_SERVICIO') THEN a.haber_usd ELSE 0 END) as egresos_usd_operativo
     FROM contabilidad_asientos a
     ${joinClause}

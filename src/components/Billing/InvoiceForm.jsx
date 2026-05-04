@@ -43,6 +43,7 @@ const InvoiceForm = ({ onProcessComplete }) => {
 
   const [metodoPago, setMetodoPago] = useState(draft.current?.metodoPago || 'EFECTIVO_USD');
   const [detallePago, setDetallePago] = useState(draft.current?.detallePago || '');
+  const [invoiceDate, setInvoiceDate] = useState(draft.current?.invoiceDate || new Date().toISOString().split('T')[0]);
 
   const [notification, setNotification] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -51,8 +52,8 @@ const InvoiceForm = ({ onProcessComplete }) => {
 
   // Guardar borrador cada vez que cambia algo relevante
   useEffect(() => {
-    saveDraft({ patientSearch, selectedPatient, exchangeRateStr, invoiceItems, selectedDoctor, metodoPago, detallePago });
-  }, [patientSearch, selectedPatient, exchangeRateStr, invoiceItems, selectedDoctor, metodoPago, detallePago]);
+    saveDraft({ patientSearch, selectedPatient, exchangeRateStr, invoiceItems, selectedDoctor, metodoPago, detallePago, invoiceDate });
+  }, [patientSearch, selectedPatient, exchangeRateStr, invoiceItems, selectedDoctor, metodoPago, detallePago, invoiceDate]);
 
   useEffect(() => {
     loadInitialData();
@@ -186,7 +187,8 @@ const InvoiceForm = ({ onProcessComplete }) => {
         commission,
         requiredInsumos,
         metodo_pago: metodoPago,
-        detalle_pago: detallePago
+        detalle_pago: detallePago,
+        fecha_factura: invoiceDate
       };
       const result = await manager.processInvoice(invoiceData);
       const facturaId = result.facturaId || result.id_factura;
@@ -265,6 +267,17 @@ const InvoiceForm = ({ onProcessComplete }) => {
               <span className="rate-hint">1 USD = {exchangeRate.toFixed(2)} Bs.</span>
             )}
           </div>
+        </div>
+
+        {/* Fecha de Factura */}
+        <div className="inv-field">
+          <label>Fecha de Factura <span className="req">*</span></label>
+          <input
+            type="date"
+            className="inv-input"
+            value={invoiceDate}
+            onChange={(e) => setInvoiceDate(e.target.value)}
+          />
         </div>
 
         {/* Selección de Médico */}
